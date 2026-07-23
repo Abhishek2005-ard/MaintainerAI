@@ -1,128 +1,96 @@
 import { Request, Response, NextFunction } from 'express';
-import { githubApiService } from '../services/GitHubApiService.js';
-import { RepositoryModel } from '../models/RepositoryModel.js';
-import { logger } from '../utils/logger.js';
+import * as githubApiService from '../services/GitHubApiService.js';
+import * as repositoryService from '../services/RepositoryService.js';
+import { catchAsync } from '../utils/catchAsync.js';
+import { ApiError } from '../utils/ApiError.js';
 
-export class IssueController {
-  // Helper to find repository and its installationId
-  private async findRepoDetails(owner: string, name: string) {
-    const repo = await RepositoryModel.findOne({ owner, name });
-    if (!repo) {
-      throw new Error(`Repository ${owner}/${name} not configured locally.`);
-    }
-    return repo;
+// GET /repos/:owner/:repo/issues
+export const getIssues = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { owner, repo } = req.params;
+  const { state } = req.query;
+
+  const repoDetails = await repositoryService.findRepoDetails(owner, repo);
+  const issues = await githubApiService.listIssues(
+    repoDetails.installationId,
+    owner,
+    repo,
+    (state as any) || 'open'
+  );
+
+  res.json({ success: true, count: issues.length, issues });
+});
+
+// POST /repos/:owner/:repo/issues
+export const createIssue = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { owner, repo } = req.params;
+  const { title, body, labels } = req.body;
+
+  if (!title || !body) {
+    throw new ApiError(400, 'Title and body are required.');
   }
 
-  // GET /repos/:owner/:repo/issues
-  public async getIssues(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { owner, repo } = req.params;
-      const { state } = req.query;
+  const repoDetails = await repositoryService.findRepoDetails(owner, repo);
+  const newIssue = await githubApiService.createIssue(
+    repoDetails.installationId,
+    owner,
+    repo,
+    title,
+    body,
+    labels
+  );
 
-      const repoDetails = await this.findRepoDetails(owner, repo);
-      const issues = await githubApiService.listIssues(
-        repoDetails.installationId,
-        owner,
-        repo,
-        (state as any) || 'open'
-      );
+  res.status(201).json({ success: true, issue: newIssue });
+});
 
-      res.json({ success: true, count: issues.length, issues });
-    } catch (err: any) {
-      res.status(404).json({ error: err.message });
-    }
+// PATCH /repos/:owner/:repo/issues/:number
+export const updateIssue = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { owner, repo, number } = req.params;
+  const { title, body, state, labels } = req.body;
+
+  const repoDetails = await repositoryService.findRepoDetails(owner, repo);
+  const updatedIssue = await githubApiService.updateIssue(
+    repoDetails.installationId,
+    owner,
+    repo,
+    parseInt(number, 10),
+    { title, body, state, labels }
+  );
+
+  res.json({ success: true, issue: updatedIssue });
+});
+
+// POST /repos/:owner/:repo/issues/:number/comments
+export const createComment = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { owner, repo, number } = req.params;
+  const { body } = req.body;
+
+  if (!body) {
+    throw new ApiError(400, 'Comment body is required.');
   }
 
-  // POST /repos/:owner/:repo/issues
-  public async createIssue(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { owner, repo } = req.params;
-      const { title, body, labels } = req.body;
+  const repoDetails = await repositoryService.findRepoDetails(owner, repo);
+  const newComment = await githubApiService.createComment(
+    repoDetails.installationId,
+    owner,
+    repo,
+    parseInt(number, 10),
+    body
+  );
 
-      if (!title || !body) {
-        return res.status(400).json({ error: 'title and body are required.' });
-      }
+  res.status(201).json({ success: true, comment: newComment });
+});
 
-      const repoDetails = await this.findRepoDetails(owner, repo);
-      const newIssue = await githubApiService.createIssue(
-        repoDetails.installationId,
-        owner,
-        repo,
-        title,
-        body,
-        labels
-      );
+// GET /repos/:owner/:repo/issues/:number/comments
+export const getComments = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { owner, repo, number } = req.params;
 
-      res.status(201).json({ success: true, issue: newIssue });
-    } catch (err: any) {
-      res.status(404).json({ error: err.message });
-    }
-  }
+  const repoDetails = await repositoryService.findRepoDetails(owner, repo);
+  const comments = await githubApiService.getComments(
+    repoDetails.installationId,
+    owner,
+    repo,
+    parseInt(number, 10)
+  );
 
-  // PATCH /repos/:owner/:repo/issues/:number
-  public async updateIssue(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { owner, repo, number } = req.params;
-      const { title, body, state, labels } = req.body;
-
-      const repoDetails = await this.findRepoDetails(owner, repo);
-      const updatedIssue = await githubApiService.updateIssue(
-        repoDetails.installationId,
-        owner,
-        repo,
-        parseInt(number, 10),
-        { title, body, state, labels }
-      );
-
-      res.json({ success: true, issue: updatedIssue });
-    } catch (err: any) {
-      res.status(404).json({ error: err.message });
-    }
-  }
-
-  // POST /repos/:owner/:repo/issues/:number/comments
-  public async createComment(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { owner, repo, number } = req.params;
-      const { body } = req.body;
-
-      if (!body) {
-        return res.status(400).json({ error: 'Comment body is required.' });
-      }
-
-      const repoDetails = await this.findRepoDetails(owner, repo);
-      const newComment = await githubApiService.createComment(
-        repoDetails.installationId,
-        owner,
-        repo,
-        parseInt(number, 10),
-        body
-      );
-
-      res.status(201).json({ success: true, comment: newComment });
-    } catch (err: any) {
-      res.status(404).json({ error: err.message });
-    }
-  }
-
-  // GET /repos/:owner/:repo/issues/:number/comments
-  public async getComments(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { owner, repo, number } = req.params;
-
-      const repoDetails = await this.findRepoDetails(owner, repo);
-      const comments = await githubApiService.getComments(
-        repoDetails.installationId,
-        owner,
-        repo,
-        parseInt(number, 10)
-      );
-
-      res.json({ success: true, count: comments.length, comments });
-    } catch (err: any) {
-      res.status(404).json({ error: err.message });
-    }
-  }
-}
-
-export const issueController = new IssueController();
+  res.json({ success: true, count: comments.length, comments });
+});

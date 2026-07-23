@@ -1,5 +1,5 @@
 import express from 'express';
-import { repositoryController } from '../controllers/RepositoryController.js';
+import * as repositoryController from '../controllers/RepositoryController.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();

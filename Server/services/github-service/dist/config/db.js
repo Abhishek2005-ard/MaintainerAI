@@ -9,7 +9,7 @@ export const connectDB = async () => {
         logger.info('🔌 Connected to MongoDB successfully.');
     }
     catch (error) {
-        logger.error(`❌ MongoDB connection failed: ${error.message}`);
-        logger.warn('⚠️ Server will run with database access disabled or mock fallback.');
+        logger.error(`MongoDB connection failed: ${error.message}`);
+        logger.warn('Server will run with database access disabled or mock fallback.');
     }
 };
