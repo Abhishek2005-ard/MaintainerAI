@@ -1,19 +1,10 @@
 import { Annotation } from '@langchain/langgraph';
+import type { IssuePayload, IssueAnalysis } from '../types/index.js';
 
-export interface IssueAnalysis {
-  category: 'bug' | 'feature' | 'question' | 'other';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  burnoutRisk: boolean;
-  reasoning: string;
-}
-
+// Shared state object that flows through every node in the triage graph
 export const TriageState = Annotation.Root({
-  // The raw issue details received from GitHub Webhook
-  issue: Annotation<any>(),
-  // The output of LLM analysis
+  issue: Annotation<IssuePayload>(),
   analysis: Annotation<IssueAnalysis>(),
-  // The actions planned based on the analysis (e.g. ['add_labels', 'post_comment'])
-  actions: Annotation<string[]>(),
-  // Execution logs for the actions performed
-  executionLogs: Annotation<string[]>(),
+  actions: Annotation<string[]>(),       // e.g. ["add_label:bug", "post_support_comment"]
+  executionLogs: Annotation<string[]>(), // result of each action execution
 });

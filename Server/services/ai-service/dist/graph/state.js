@@ -1,11 +1,8 @@
 import { Annotation } from '@langchain/langgraph';
+// Shared state object that flows through every node in the triage graph
 export const TriageState = Annotation.Root({
-    // The raw issue details received from GitHub Webhook
     issue: Annotation(),
-    // The output of LLM analysis
     analysis: Annotation(),
-    // The actions planned based on the analysis (e.g. ['add_labels', 'post_comment'])
-    actions: Annotation(),
-    // Execution logs for the actions performed
-    executionLogs: Annotation(),
+    actions: Annotation(), // e.g. ["add_label:bug", "post_support_comment"]
+    executionLogs: Annotation(), // result of each action execution
 });

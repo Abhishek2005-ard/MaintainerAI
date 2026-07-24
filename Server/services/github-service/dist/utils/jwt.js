@@ -6,3 +6,6 @@ export const signToken = (payload) => {
 export const verifyToken = (token) => {
     return jwt.verify(token, env.JWT_SECRET);
 };
+export const signSystemToken = () => {
+    return jwt.sign({ id: 'github-service', role: 'admin' }, env.JWT_SECRET, { expiresIn: '15m' });
+};

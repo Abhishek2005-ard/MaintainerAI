@@ -1,60 +1,71 @@
 import { env } from '../config/env.js';
-import { signSystemToken } from '../utils/jwt.js';
-import { logger } from '../utils/logger.js';
-const getHeaders = () => {
-    const token = signSystemToken();
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-};
-/**
- * Call the GitHub microservice to update labels on a specific issue.
- */
-export const addLabelsToIssue = async (owner, repo, number, labels) => {
-    const url = `${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}`;
-    logger.info(`Tool called: addLabelsToIssue for ${owner}/${repo}#${number} labels=${labels}`);
+import { internalRequest } from '../utils/httpClient.js';
+export const fetchRepoContext = async (owner, repo) => {
     try {
-        const res = await fetch(url, {
-            method: 'PATCH',
-            headers: getHeaders(),
-            body: JSON.stringify({ labels })
-        });
-        if (!res.ok) {
-            const errText = await res.text();
-            logger.error(`Failed to add labels to issue: ${res.status} ${errText}`);
-            return false;
-        }
-        logger.info(`Successfully added labels to ${owner}/${repo}#${number}`);
-        return true;
+        const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos`);
+        if (!res.ok)
+            return null;
+        const data = await res.json();
+        const match = (data.repositories || []).find((r) => r.owner === owner && r.name === repo);
+        if (!match)
+            return null;
+        return { name: match.name, fullName: match.fullName, owner: match.owner, description: match.description || '', triageRulesActive: !!match.triageRulesActive };
     }
-    catch (err) {
-        logger.error(`Exception in addLabelsToIssue tool: ${err.message}`);
+    catch {
+        return null;
+    }
+};
+export const fetchRepoIssues = async (owner, repo) => {
+    try {
+        const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues?state=open`);
+        if (!res.ok)
+            return [];
+        const data = await res.json();
+        return (data.issues || []).map((i) => ({
+            number: i.number,
+            title: i.title || '',
+            body: i.body || '',
+            labels: (i.labels || []).map((l) => typeof l === 'string' ? l : l.name),
+            state: i.state || 'open',
+        }));
+    }
+    catch {
+        return [];
+    }
+};
+export const markIssueAsDuplicate = async (owner, repo, number, duplicateOf) => {
+    try {
+        const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body: `This issue appears to be a duplicate of #${duplicateOf}. Please check that issue for updates.` }),
+        });
+        return res.ok;
+    }
+    catch {
         return false;
     }
 };
-/**
- * Call the GitHub microservice to add a comment on a specific issue.
- */
-export const postCommentToIssue = async (owner, repo, number, body) => {
-    const url = `${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}/comments`;
-    logger.info(`Tool called: postCommentToIssue for ${owner}/${repo}#${number}`);
+export const addLabelsToIssue = async (owner, repo, number, labels) => {
     try {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ body })
+        const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ labels }),
         });
-        if (!res.ok) {
-            const errText = await res.text();
-            logger.error(`Failed to post comment to issue: ${res.status} ${errText}`);
-            return false;
-        }
-        logger.info(`Successfully posted comment to ${owner}/${repo}#${number}`);
-        return true;
+        return res.ok;
     }
-    catch (err) {
-        logger.error(`Exception in postCommentToIssue tool: ${err.message}`);
+    catch {
+        return false;
+    }
+};
+export const postCommentToIssue = async (owner, repo, number, body) => {
+    try {
+        const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body }),
+        });
+        return res.ok;
+    }
+    catch {
         return false;
     }
 };

@@ -28,11 +28,11 @@ export default function Navbar() {
       <div className="max-w-max-width mx-auto px-4 sm:px-6 lg:px-margin-desktop flex items-center justify-between h-20">
         {/* Brand Logo */}
         <a href="#" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-primary group-hover:scale-105 transition-transform duration-200 shadow-md shadow-primary/10">
+          <div className="w-10 h-10 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-white group-hover:scale-105 transition-transform duration-200">
             <span className="material-symbols-outlined text-2xl">shield_with_heart</span>
           </div>
-          <span className="font-headline-md text-headline-md font-bold text-primary tracking-tight">
-            Maintainer<span className="text-secondary">AI</span>
+          <span className="font-headline-md text-headline-md font-bold text-white tracking-tight">
+            Maintainer<span className="text-neutral-400">AI</span>
           </span>
         </a>
 

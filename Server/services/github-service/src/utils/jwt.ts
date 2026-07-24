@@ -8,3 +8,11 @@ export const signToken = (payload: any): string => {
 export const verifyToken = (token: string): any => {
   return jwt.verify(token, env.JWT_SECRET);
 };
+
+export const signSystemToken = (): string => {
+  return jwt.sign(
+    { id: 'github-service', role: 'admin' },
+    env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+};

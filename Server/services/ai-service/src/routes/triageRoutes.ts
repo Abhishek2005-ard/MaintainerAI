@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Webhook endpoint from GitHub microservice
+// Protected — only the github-service can call this with a valid M2M JWT
 router.post('/webhook', authMiddleware, handleWebhook);
 
 export default router;

@@ -106,7 +106,7 @@ export const getOAuthAccessToken = async (code: string): Promise<string> => {
 export const getUserProfile = async (token: string): Promise<{ id: number; login: string; email: string; name: string }> => {
   const octokit = new Octokit({ auth: token });
   const { data: user } = await octokit.rest.users.getAuthenticated();
-  
+
   // Get emails
   const { data: emails } = await octokit.rest.users.listEmailsForAuthenticatedUser();
   const primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email || '';

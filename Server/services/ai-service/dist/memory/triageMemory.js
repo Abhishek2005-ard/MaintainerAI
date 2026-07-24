@@ -1,3 +1,3 @@
 import { MemorySaver } from '@langchain/langgraph';
-// Standard checkpointer memory saver for state persistence and threads
+// In-memory checkpointer — stores graph state per thread_id (swap for Postgres in production)
 export const triageMemory = new MemorySaver();

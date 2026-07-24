@@ -4,25 +4,25 @@ import { runTriageAgent } from '../agents/TriageAgent.js';
 import * as githubTools from '../tools/githubTools.js';
 import { triageMemory } from '../memory/triageMemory.js';
 import { logger } from '../utils/logger.js';
+import type { IssuePayload } from '../types/index.js';
 
-// 1. Analyze Node: Uses LLM to categorize and analyze issue metadata
-const analyzeNode = async (state: typeof TriageState.State) => {
-  logger.info(`[Graph Node] Analyzing issue: ${state.issue.title}`);
+// Node 1 — send issue to LLM and get back structured analysis
+const analyzeIssueNode = async (state: typeof TriageState.State) => {
+  logger.info(`[Graph:analyze] Analyzing: "${state.issue.title}"`);
   const analysis = await runTriageAgent(state.issue.title, state.issue.body);
   return { analysis };
 };
 
-// 2. Decide Node: Plans actions (labels, comments) based on analysis
-const decideNode = async (state: typeof TriageState.State) => {
-  logger.info(`[Graph Node] Deciding actions based on analysis category=${state.analysis.category}`);
+// Node 2 — convert analysis into a list of action strings
+const decideActionsNode = async (state: typeof TriageState.State) => {
+  const { category, priority, burnoutRisk } = state.analysis;
+  logger.info(`[Graph:decide] category=${category}, priority=${priority}, burnoutRisk=${burnoutRisk}`);
+
   const actions: string[] = [];
+  actions.push(`add_label:${category}`);
+  actions.push(`add_label:priority-${priority}`);
 
-  // Add category labels
-  actions.push(`add_label:${state.analysis.category}`);
-  actions.push(`add_label:priority-${state.analysis.priority}`);
-
-  // If burnout risk is flagged, plan labels and supportive message
-  if (state.analysis.burnoutRisk) {
+  if (burnoutRisk) {
     actions.push('add_label:burnout-risk');
     actions.push('post_support_comment');
   }
@@ -30,68 +30,57 @@ const decideNode = async (state: typeof TriageState.State) => {
   return { actions };
 };
 
-// 3. Execute Node: Carries out the actions via GitHub microservice tools
-const executeNode = async (state: typeof TriageState.State) => {
-  logger.info(`[Graph Node] Executing actions: ${state.actions.join(', ')}`);
-  const logs: string[] = [];
+// Node 3 — execute each action via the GitHub microservice tools
+const executeActionsNode = async (state: typeof TriageState.State) => {
   const { owner, repoName, number } = state.issue;
+  logger.info(`[Graph:execute] Running ${state.actions.length} action(s) on ${owner}/${repoName}#${number}`);
 
+  const logs: string[] = [];
   const labelsToAdd: string[] = [];
   let shouldPostComment = false;
 
   for (const action of state.actions) {
     if (action.startsWith('add_label:')) {
-      const label = action.split(':')[1];
-      labelsToAdd.push(label);
+      labelsToAdd.push(action.split(':')[1]);
     } else if (action === 'post_support_comment') {
       shouldPostComment = true;
     }
   }
 
-  // Execute label additions
   if (labelsToAdd.length > 0) {
-    const success = await githubTools.addLabelsToIssue(owner, repoName, number, labelsToAdd);
-    logs.push(`Added labels [${labelsToAdd.join(', ')}]: ${success ? 'success' : 'failed'}`);
+    const ok = await githubTools.addLabelsToIssue(owner, repoName, number, labelsToAdd);
+    logs.push(`Added labels [${labelsToAdd.join(', ')}]: ${ok ? 'success' : 'failed'}`);
   }
 
-  // Execute supportive comment if burnout risk is high
   if (shouldPostComment) {
-    const commentBody = `👋 Hello! Thanks for opening this issue. 
+    const commentBody = [
+      'Thanks for opening this issue!',
+      '',
+      'Our maintainers are volunteers — please be kind and patient. We appreciate it!',
+    ].join('\n');
 
-Our maintainers work hard to build and support this project. Please remember to respect healthy boundaries. We appreciate your patience while we review this issue! ❤️`;
-    const success = await githubTools.postCommentToIssue(owner, repoName, number, commentBody);
-    logs.push(`Posted supportive comment: ${success ? 'success' : 'failed'}`);
+    const ok = await githubTools.postCommentToIssue(owner, repoName, number, commentBody);
+    logs.push(`Posted support comment: ${ok ? 'success' : 'failed'}`);
   }
 
   return { executionLogs: logs };
 };
 
-// Assemble the StateGraph workflow
+// Wire up the 3 nodes and compile the graph with memory checkpointing
 const workflow = new StateGraph(TriageState)
-  .addNode('analyze', analyzeNode)
-  .addNode('decide', decideNode)
-  .addNode('execute', executeNode)
-  .addEdge(START, 'analyze')
+  .addNode('analyze', analyzeIssueNode)
+  .addNode('decide',  decideActionsNode)
+  .addNode('execute', executeActionsNode)
+  .addEdge(START,     'analyze')
   .addEdge('analyze', 'decide')
-  .addEdge('decide', 'execute')
-  .addEdge('execute', END);
+  .addEdge('decide',  'execute')
+  .addEdge('execute',  END);
 
-// Compile the graph with memory savers
-export const triageGraph = workflow.compile({
-  checkpointer: triageMemory
-});
+export const triageGraph = workflow.compile({ checkpointer: triageMemory });
 
-/**
- * Runs the complete LangGraph triage flow for a given issue
- */
-export const runTriageFlow = async (issue: any) => {
-  // Use the issue id as a thread id for persistence memory grouping
-  const config = {
-    configurable: { thread_id: `thread-${issue.issueId}` }
-  };
-
-  logger.info(`Invoking TriageGraph flow for issue thread ID: ${config.configurable.thread_id}`);
-  
-  const finalState = await triageGraph.invoke({ issue }, config);
-  return finalState;
+// Entry point for running the full triage flow — each issue gets its own thread
+export const runTriageFlow = async (issue: IssuePayload) => {
+  const config = { configurable: { thread_id: `triage-${issue.issueId}` } };
+  logger.info(`[TriageGraph] Starting flow for thread: ${config.configurable.thread_id}`);
+  return await triageGraph.invoke({ issue }, config);
 };

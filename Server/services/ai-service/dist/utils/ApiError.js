@@ -1,3 +1,4 @@
+// Custom error class so route handlers can attach an HTTP status code to any thrown error
 export class ApiError extends Error {
     statusCode;
     isOperational;

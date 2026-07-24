@@ -13,35 +13,38 @@ html {
 
 body {
   font-family: 'Geist', 'Inter', sans-serif;
-  background-color: #11131b;
-  color: #e1e1ed;
+  background-color: #050505;
+  color: #f5f5f5;
   overflow-x: hidden;
 }
 
+/* Glass card design with grayscale borders and soft shadow */
 .glass-card {
-  background: rgba(29, 31, 40, 0.65);
+  background: rgba(18, 18, 18, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(186, 197, 238, 0.3);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  transform: translateY(-2px);
+}
+
+/* Grayscale glow styling */
+.glow-primary {
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.07);
 }
 
 .glow-teal {
-  box-shadow: 0 0 25px rgba(109, 217, 190, 0.25);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.04);
 }
 
-.glow-primary {
-  box-shadow: 0 0 30px rgba(37, 99, 235, 0.3);
-}
-
-/* Background Gradients */
+/* Subtle, high-end radial glow behind content */
 .hero-radial-glow {
-  background: radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.15) 0%, rgba(109, 217, 190, 0.05) 50%, transparent 80%);
+  background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 50%, transparent 80%);
 }
 
 .bento-grid {
@@ -50,20 +53,74 @@ body {
   gap: 24px;
 }
 
-/* Custom scrollbar */
+/* Centralized Grayscale Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #11131b;
+  background: #050505;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #282a32;
-  border-radius: 4px;
+  background: #222;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #45464e;
+  background: #444;
+}
+
+/* Micro-animations and professional scroll effects */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseBorder {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* CSS classes for interactive animations */
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.border-pulse {
+  animation: pulseBorder 3s infinite ease-in-out;
+}
+
+/* Hover button line draw effect */
+.btn-draw-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-draw-effect::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-draw-effect:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
