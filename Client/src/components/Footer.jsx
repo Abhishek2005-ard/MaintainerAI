@@ -13,7 +13,7 @@ export default function Footer() {
             </span>
           </div>
           <p className="font-body-sm text-xs text-on-surface-variant">
-            © 2026 MaintainerAI Inc. Built for the global open-source community with care.
+            © 2026 MaintainerAI. Built with LangGraph, Gemini, and TypeScript for the open-source community.
           </p>
         </div>
 
@@ -26,7 +26,13 @@ export default function Footer() {
             Overview
           </a>
           <a
-            href="https://github.com"
+            href="#workflow"
+            className="font-label-md text-xs text-on-surface-variant hover:text-secondary transition-colors"
+          >
+            How it works
+          </a>
+          <a
+            href="https://github.com/Abhishek2005-ard/MaintainerAI"
             target="_blank"
             rel="noreferrer"
             className="font-label-md text-xs text-on-surface-variant hover:text-secondary transition-colors flex items-center gap-1"
@@ -38,13 +44,7 @@ export default function Footer() {
             href="#features"
             className="font-label-md text-xs text-on-surface-variant hover:text-secondary transition-colors"
           >
-            Documentation
-          </a>
-          <a
-            href="#"
-            className="font-label-md text-xs text-tertiary hover:underline transition-colors font-bold"
-          >
-            Sponsor Open Source
+            Docs
           </a>
         </div>
       </div>

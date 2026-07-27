@@ -5,17 +5,18 @@ export default function PricingSection() {
 
   const plans = [
     {
-      name: "Free",
+      name: "Open Source",
       price: "$0",
       period: "/mo",
-      tagline: "FOR OPEN SOURCE",
+      tagline: "FOR PUBLIC REPOSITORIES",
       tagColor: "text-secondary",
       highlight: false,
-      cta: "Get Started",
+      cta: "Install on GitHub",
       features: [
         "Unlimited Public Repositories",
-        "Basic AI Auto-Triage",
-        "Standard Load Tracking",
+        "Full LangGraph Triage Workflow",
+        "Duplicate Detection via Embeddings",
+        "Basic Label Prediction",
         "Community Support",
       ],
     },
@@ -26,13 +27,14 @@ export default function PricingSection() {
       tagline: "FOR INDIVIDUAL MAINTAINERS",
       tagColor: "text-primary",
       highlight: true,
-      cta: "Go Pro",
+      cta: "Get Pro Access",
       features: [
         "5 Private Repositories",
-        "Advanced LLM Triage & Draft Replies",
-        "Real-time Burnout & Load Analytics",
-        "Quiet Hours Boundary Locks",
-        "Email & Discord Alerts",
+        "Gemini + OpenAI Model Selection",
+        "Advanced Burnout Risk Detection",
+        "Triage Report Dashboard API",
+        "Weekly Digest Reports",
+        "Priority Email Alerts",
       ],
     },
     {
@@ -42,13 +44,14 @@ export default function PricingSection() {
       tagline: "FOR ORGANIZATIONS",
       tagColor: "text-on-surface-variant",
       highlight: false,
-      cta: "Contact Sales",
+      cta: "Contact Us",
       features: [
         "Unlimited Private Repositories",
-        "Team-wide Boundary & SLA Rules",
-        "Bus-Factor Knowledge Silo Alerts",
-        "Custom Workflow Automations",
-        "24/7 Priority Concierge Support",
+        "Custom LangGraph Workflow Nodes",
+        "Multi-Repo Report Aggregation",
+        "JWT-Secured Internal APIs",
+        "Self-Hosted Deployment Support",
+        "24/7 Concierge Support",
       ],
     },
   ];
@@ -58,13 +61,13 @@ export default function PricingSection() {
       <div className="max-w-max-width mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <span className="font-label-md text-label-md text-primary uppercase tracking-widest block mb-2 font-bold">
-            Transparent Investment
+            Simple Pricing
           </span>
           <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-            Simple, Fair Pricing for Everyone
+            Free for Open Source. Powerful for Teams.
           </h2>
           <p className="font-body-md text-on-surface-variant">
-            Free forever for open-source public projects. Scalable protection for private enterprise repos.
+            The full LangGraph triage workflow is free for public repositories. Unlock advanced LLM models and private repo support with Pro.
           </p>
 
           {/* Billing Cycle Toggle */}

@@ -7,15 +7,15 @@ export default function CtaBanner() {
 
         <div className="relative z-10 max-w-2xl mx-auto">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-container text-primary mb-6 shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-3xl">rocket_launch</span>
+            <span className="material-symbols-outlined text-3xl">account_tree</span>
           </div>
 
           <h2 className="font-headline-lg text-3xl sm:text-headline-lg text-on-surface mb-4 font-bold">
-            Ready to find your balance?
+            Add MaintainerAI to your repository
           </h2>
 
           <p className="font-body-md text-on-surface-variant mb-10 leading-relaxed">
-            Join over 2,000+ open-source maintainers reclaiming their mental space and protecting their repositories with MaintainerAI.
+            Install in minutes. MaintainerAI will start triaging issues immediately — classifying, deduplicating, labelling, and protecting your team from burnout automatically.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -27,7 +27,7 @@ export default function CtaBanner() {
               href="#features"
               className="w-full sm:w-auto text-on-surface-variant hover:text-on-surface font-label-md text-body-md px-6 py-4 rounded-xl transition-colors"
             >
-              Explore feature suite →
+              Explore the architecture →
             </a>
           </div>
         </div>

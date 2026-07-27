@@ -1,40 +1,40 @@
 export default function FeaturesGrid() {
   const features = [
     {
-      icon: "auto_mode",
-      title: "Auto-triage",
-      description: "Labels, assigns, and drafts intelligent replies to recurring issue templates instantly using repo history.",
+      icon: "account_tree",
+      title: "LangGraph Workflow",
+      description: "A multi-node StateGraph orchestrates every triage step — from duplicate detection to label prediction — in a clean, auditable pipeline.",
+      badge: "LangGraph",
+    },
+    {
+      icon: "content_copy",
+      title: "Duplicate Detection",
+      description: "Embeds each incoming issue using Gemini or OpenAI embeddings and runs cosine similarity against all open issues to catch duplicates instantly.",
+      badge: "Semantic AI",
+    },
+    {
+      icon: "label",
+      title: "Auto Label Prediction",
+      description: "The LabelAgent calls an LLM with the issue analysis and predicts the exact GitHub labels to apply — bug, priority, enhancement and more.",
       badge: "AI Native",
     },
     {
-      icon: "speed",
-      title: "Load Score Dashboard",
-      description: "A holistic view of your repository's metabolic health, queue latency, and maintainer capacity balance.",
+      icon: "shield_with_heart",
+      title: "Burnout Risk Shield",
+      description: "The TriageAgent scores the tone of each issue. If it detects demanding or toxic language, a supportive comment is automatically posted.",
+      badge: "Wellbeing",
+    },
+    {
+      icon: "monitoring",
+      title: "Triage Report Dashboard",
+      description: "Every triage run is saved to the report-service with full stats — duplicates, burnout flags, category and priority breakdowns — queryable via API.",
       badge: "Real-time",
     },
     {
-      icon: "shield_with_heart",
-      title: "Boundary Enforcement",
-      description: "Lock issue comments after working hours to safeguard maintainer focus and enforce quiet weekends.",
-      badge: "Work-Life Balance",
-    },
-    {
-      icon: "group_add",
-      title: "Contributor Funneling",
-      description: "Nudges frequent high-quality contributors toward triage and reviewer roles automatically.",
-      badge: "Community Growth",
-    },
-    {
-      icon: "cleaning_services",
-      title: "Stale Issue Sweeps",
-      description: "Clean up noisy backlogs with automated, polite staleness checks and auto-resolution prompts.",
-      badge: "Clean Backlog",
-    },
-    {
-      icon: "warning",
-      title: "Bus-Factor Alerts",
-      description: "Identify single-point-of-failure code paths and knowledge silos before key maintainers leave.",
-      badge: "Risk Shield",
+      icon: "hub",
+      title: "Microservices Architecture",
+      description: "Four independent services — AI, GitHub, Report, and a Client — each with their own Express server, MongoDB, JWT auth and typed TypeScript codebase.",
+      badge: "Scalable",
     },
   ];
 
@@ -45,10 +45,10 @@ export default function FeaturesGrid() {
           Feature Suite
         </span>
         <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-          Built for High-Velocity Engineering Teams
+          Built on a Real Agentic Architecture
         </h2>
         <p className="font-body-md text-on-surface-variant">
-          Everything you need to run a sustainable, scalable open-source project without sacrificing maintainer sanity.
+          Every feature is backed by a dedicated agent, a clean LangGraph graph, and proper TypeScript types — no shortcuts.
         </p>
       </div>
 

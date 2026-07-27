@@ -1,25 +1,25 @@
 export default function ProblemStats() {
   const stats = [
     {
-      value: "70%",
+      value: "88%",
       color: "text-secondary",
       borderColor: "hover:border-secondary/50",
-      description: "of maintainers feel overwhelmed by the relentless volume of un-triaged issues and pull requests.",
-      icon: "sentiment_very_dissatisfied",
+      description: "cosine similarity threshold above which MaintainerAI automatically flags an incoming issue as a duplicate — stopping noise before it reaches maintainers.",
+      icon: "content_copy",
     },
     {
-      value: "54%",
+      value: "5+",
       color: "text-tertiary",
       borderColor: "hover:border-tertiary/50",
-      description: "report that project popularity directly increases stress, leading to silent burnout and fatigue.",
-      icon: "trending_up",
+      description: "dedicated agents in the system — TriageAgent, LabelAgent, DuplicateAgent, GitHubAgent, and ReportAgent — each with exactly one responsibility.",
+      icon: "account_tree",
     },
     {
-      value: "3.2x",
+      value: "4",
       color: "text-primary",
       borderColor: "hover:border-primary/50",
-      description: "Higher risk of sudden project abandonment when a single maintainer holds all key operational knowledge.",
-      icon: "warning",
+      description: "independent microservices — AI Service, GitHub Service, Report Service, and a React Client — communicating over JWT-authenticated internal APIs.",
+      icon: "hub",
     },
   ];
 
@@ -27,10 +27,10 @@ export default function ProblemStats() {
     <section id="problem" className="py-20 px-4 sm:px-6 lg:px-margin-desktop max-w-max-width mx-auto">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-          The Hidden Cost of Maintaining Alone
+          Built for Real-World GitHub Scale
         </h2>
         <p className="font-body-md text-on-surface-variant">
-          Open-source software powers the modern internet, yet maintainers face unprecedented workloads without continuous automated support.
+          MaintainerAI is not a demo — it is a fully typed, multi-service system with real LLM integrations, semantic search, and live GitHub API interactions.
         </p>
       </div>
 

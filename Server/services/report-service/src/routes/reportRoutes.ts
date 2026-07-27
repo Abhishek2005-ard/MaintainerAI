@@ -1,15 +1,20 @@
 import express from 'express';
-import { createTriageReport, getReports, getDashboardStats, getWeeklyDigest } from '../controllers/ReportController.js';
 import { authMiddleware } from '../middleware/auth.js';
+import {
+  createTriageReport,
+  getDashboardStats,
+  getReports,
+  getWeeklyDigest,
+} from '../controllers/ReportController.js';
 
 const router = express.Router();
 
-// M2M endpoint — requires JWT from agent-service
+// Internal (M2M) — requires a signed JWT from the AI service
 router.post('/reports/triage', authMiddleware, createTriageReport);
 
-// Dashboard and Reporting APIs
-router.get('/reports', getReports);
+// Public read endpoints
+router.get('/reports',           getReports);
 router.get('/reports/dashboard', getDashboardStats);
-router.get('/reports/digest', getWeeklyDigest);
+router.get('/reports/digest',    getWeeklyDigest);
 
 export default router;

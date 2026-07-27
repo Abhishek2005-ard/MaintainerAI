@@ -8,23 +8,30 @@ import reportRoutes from './routes/reportRoutes.js';
 
 const app = express();
 
-connectDB();
-
+// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use(reportRoutes);
 
 app.get('/health', (_req, res) => {
-  res.status(200).json({
-    service: 'MaintainerAI Report Service',
-    status: 'active',
+  res.json({
+    service:   'MaintainerAI Report Service',
+    status:    'ok',
     timestamp: new Date().toISOString(),
   });
 });
 
+// ── Error handling (must come last) ──────────────────────────────────────────
 app.use(errorHandler);
 
-app.listen(env.PORT, () => {
-  logger.info(`🚀 MaintainerAI Report Service running on port ${env.PORT} [${env.NODE_ENV}]`);
-});
+// ── Start ─────────────────────────────────────────────────────────────────────
+async function start(): Promise<void> {
+  await connectDB();
+  app.listen(env.PORT, () =>
+    logger.info(`Report Service running on port ${env.PORT} [${env.NODE_ENV}]`),
+  );
+}
+
+start();

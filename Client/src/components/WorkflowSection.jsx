@@ -1,36 +1,36 @@
 export default function WorkflowSection() {
   const steps = [
     {
-      icon: "filter_list",
-      title: "1. Triage",
+      icon: "input",
+      title: "1. Receive Issue",
       bgColor: "bg-secondary-container",
       textColor: "text-on-secondary-container",
       glow: "glow-teal",
-      description: "AI-powered categorization routes incoming issues & PRs to the right domain experts instantly.",
+      description: "A GitHub webhook fires when a new issue opens. The AI service receives the payload and starts a LangGraph thread for that issue.",
     },
     {
-      icon: "monitoring",
-      title: "2. Monitor",
+      icon: "content_copy",
+      title: "2. Detect Duplicates",
       bgColor: "bg-primary-container",
       textColor: "text-on-primary-container",
       glow: "",
-      description: "Live tracking of PR response times, queue velocity, and real-time maintainer workload stress levels.",
+      description: "The DuplicateAgent embeds the issue title + body and runs cosine similarity against every open issue. Matches above 0.88 are flagged.",
     },
     {
-      icon: "notifications_active",
-      title: "3. Alert",
+      icon: "psychology",
+      title: "3. Triage with LLM",
       bgColor: "bg-error-container",
       textColor: "text-on-error-container",
       glow: "",
-      description: "Automated alerts fire when load scores cross safety thresholds before maintainer exhaustion happens.",
+      description: "The TriageAgent sends the issue to Gemini (or OpenAI) and gets back category, priority, burnout risk, and reasoning as structured JSON.",
     },
     {
-      icon: "bedtime",
-      title: "4. Recover",
+      icon: "task_alt",
+      title: "4. Apply & Report",
       bgColor: "bg-tertiary-container",
       textColor: "text-on-tertiary-container",
       glow: "",
-      description: "Automatically locks non-critical pings during quiet hours, encouraging mandatory rest periods.",
+      description: "Labels are applied via the GitHub service, a burnout comment is posted if needed, and the full report is saved to the report-service.",
     },
   ];
 
@@ -39,13 +39,13 @@ export default function WorkflowSection() {
       <div className="max-w-max-width mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="font-label-md text-label-md text-secondary uppercase tracking-widest block mb-2 font-bold">
-            Automated Protection Pipeline
+            Automated LangGraph Pipeline
           </span>
           <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-            A Healthier Workflow for Open Source
+            How the Triage Workflow Runs
           </h2>
           <p className="font-body-md text-on-surface-variant">
-            MaintainerAI sits quietly between your repository and notifications, absorbing non-urgent friction so your team can focus on coding.
+            Each GitHub issue triggers a 10-node StateGraph. Nodes delegate to focused agents — no business logic lives in the graph itself.
           </p>
         </div>
 

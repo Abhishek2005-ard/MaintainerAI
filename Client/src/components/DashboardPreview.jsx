@@ -17,13 +17,13 @@ export default function DashboardPreview() {
       <div className="max-w-max-width mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="font-label-md text-label-md text-secondary uppercase tracking-widest block mb-2 font-bold">
-            Interactive Control Center
+            Live Triage Report Dashboard
           </span>
           <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-            Real-time Repository Health Command
+            Real-time Issue Triage Analytics
           </h2>
           <p className="font-body-md text-on-surface-variant">
-            Monitor workloads, identify bottlenecks, and let automated AI policies adjust repository velocity.
+            Track triaged issues, duplicate flags, burnout risk events, and LangGraph workflow execution logs — all in one place.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export default function DashboardPreview() {
             </div>
             <div className="font-label-md text-xs sm:text-label-md text-on-surface-variant flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-secondary">verified</span>
-              MaintainerAI Dashboard — <span className="text-on-surface font-mono">main/repository-health</span>
+              MaintainerAI Dashboard — <span className="text-on-surface font-mono">report-service/triage-reports</span>
             </div>
             <div className="flex gap-2">
               {['7D', '30D', '90D'].map((tf) => (
@@ -64,17 +64,17 @@ export default function DashboardPreview() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="font-headline-md text-headline-md text-on-surface font-semibold">
-                    Maintainer Workload & Load Score
+                    Issues Triaged per Day
                   </h3>
                   <p className="text-xs text-on-surface-variant font-mono">
-                    Aggregated issue velocity vs response latency
+                    LangGraph workflow executions vs duplicates detected
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-secondary">
                   <span className="w-2.5 h-2.5 rounded-full bg-secondary inline-block"></span>
-                  <span>Normal Load</span>
+                  <span>New Issues</span>
                   <span className="w-2.5 h-2.5 rounded-full bg-tertiary inline-block ml-3"></span>
-                  <span>Peak Spike</span>
+                  <span>Duplicates Flagged</span>
                 </div>
               </div>
 
@@ -93,7 +93,7 @@ export default function DashboardPreview() {
                     </span>
                     {/* Tooltip */}
                     <div className="absolute -top-10 opacity-0 group-hover:opacity-100 bg-surface-container-highest text-on-surface text-[10px] font-mono py-1 px-2 rounded border border-outline-variant pointer-events-none transition-opacity">
-                      {height * 12} pings/hr
+                      {height} issues
                     </div>
                   </div>
                 ))}
@@ -105,35 +105,35 @@ export default function DashboardPreview() {
             <div className="w-full lg:w-80 flex flex-col gap-6 justify-between">
               <div className="p-6 bg-surface-container-high rounded-xl border border-outline-variant/30">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-md text-label-md text-on-surface">Current Load Score</span>
+                  <span className="font-label-md text-label-md text-on-surface">Duplicate Rate</span>
                   <span className={`font-bold font-mono text-xs px-2 py-0.5 rounded ${optimized ? 'bg-secondary/20 text-secondary' : 'bg-tertiary/20 text-tertiary'}`}>
-                    {optimized ? 'Optimal' : 'Monitoring'}
+                    {optimized ? 'Low' : 'Moderate'}
                   </span>
                 </div>
                 <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden mb-2">
                   <div
-                    className={`h-full transition-all duration-700 ${optimized ? 'w-[42%] bg-secondary' : 'w-[72%] bg-tertiary'}`}
+                    className={`h-full transition-all duration-700 ${optimized ? 'w-[18%] bg-secondary' : 'w-[42%] bg-tertiary'}`}
                   ></div>
                 </div>
                 <div className="flex justify-between text-xs text-on-surface-variant font-mono">
-                  <span>Capacity: {optimized ? '42%' : '72%'}</span>
-                  <span>Threshold: 80%</span>
+                  <span>Duplicates: {optimized ? '18%' : '42%'}</span>
+                  <span>Threshold: 88% sim</span>
                 </div>
               </div>
 
               <div className="p-6 bg-surface-container-high rounded-xl border border-outline-variant/30">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="font-label-md text-label-md text-on-surface">Queue Latency</span>
+                  <span className="font-label-md text-label-md text-on-surface">Burnout Flags</span>
                   <span className="text-secondary font-bold font-mono text-xs px-2 py-0.5 rounded bg-secondary/20">
-                    Healthy (2.4h)
+                    Low Risk
                   </span>
                 </div>
                 <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden mb-2">
-                  <div className="w-[35%] h-full bg-secondary transition-all duration-500"></div>
+                  <div className="w-[12%] h-full bg-secondary transition-all duration-500"></div>
                 </div>
                 <div className="flex justify-between text-xs text-on-surface-variant font-mono">
-                  <span>PR SLA: 98%</span>
-                  <span>Avg Triage: 4m</span>
+                  <span>Flagged: 12%</span>
+                  <span>Comments posted: 3</span>
                 </div>
               </div>
 
@@ -146,9 +146,9 @@ export default function DashboardPreview() {
                 }`}
               >
                 <span className="material-symbols-outlined text-lg">
-                  {optimized ? 'check_circle' : 'tune'}
+                  {optimized ? 'check_circle' : 'account_tree'}
                 </span>
-                {optimized ? 'Triage Rules Active' : 'Optimize Triage Rules'}
+                {optimized ? 'Workflow Active' : 'Run Triage Workflow'}
               </button>
             </div>
           </div>

@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger.js';
 import { ApiError } from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
 
-export const errorHandler = (err: any, req: Request, res: Response, _next: NextFunction) => {
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
-  logger.error(`[ErrorHandler] ${statusCode} — ${message}`);
-  res.status(statusCode).json({ error: message, statusCode });
-};
+// Global Express error handler — must be registered last with app.use()
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
+  const statusCode = err instanceof ApiError ? err.statusCode : 500;
+  const message    = err instanceof Error   ? err.message    : 'Internal Server Error';
+
+  logger.error(`${req.method} ${req.path} → ${statusCode}: ${message}`);
+  res.status(statusCode).json({ error: message });
+}

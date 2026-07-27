@@ -1,97 +1,63 @@
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { env } from '../config/env.js';
 import { TRIAGE_SYSTEM_PROMPT } from '../prompts/triagePrompts.js';
+import { createLLM, stripMarkdown } from './llmFactory.js';
 import { logger } from '../utils/logger.js';
 import type { IssueAnalysis } from '../types/index.js';
 
-// Pick Gemini over OpenAI if both keys are present
-const createModel = () => {
-  if (env.GEMINI_API_KEY) {
-    logger.info('[TriageAgent] Using Gemini (gemini-2.0-flash)');
-    return new ChatGoogleGenerativeAI({
-      apiKey: env.GEMINI_API_KEY,
-      model: 'gemini-2.0-flash',
-      maxOutputTokens: 1024,
-    });
-  }
+// ── Fallback ──────────────────────────────────────────────────────────────────
+// Rule-based analysis when no LLM is available.
 
-  if (env.OPENAI_API_KEY) {
-    logger.info('[TriageAgent] Using OpenAI (gpt-4o-mini)');
-    return new ChatOpenAI({
-      apiKey: env.OPENAI_API_KEY,
-      modelName: 'gpt-4o-mini',
-      temperature: 0.1,
-    });
-  }
-
-  return null;
-};
-
-// Strip markdown code fences the LLM sometimes wraps around JSON
-const parseLLMResponse = (rawContent: string): IssueAnalysis => {
-  const cleaned = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(cleaned);
-
-  return {
-    category: parsed.category || 'other',
-    priority: parsed.priority || 'low',
-    burnoutRisk: !!parsed.burnoutRisk,
-    reasoning: parsed.reasoning || 'No reasoning provided.',
-  };
-};
-
-// Simple keyword-based fallback when no LLM is configured
-const runFallbackAnalysis = (title: string, body: string): IssueAnalysis => {
-  logger.warn('[TriageAgent] No LLM key configured — using rule-based fallback.');
+function fallbackAnalysis(title: string, body: string): IssueAnalysis {
+  logger.warn('TriageAgent: no LLM configured — using keyword fallback');
 
   const text = `${title} ${body}`.toLowerCase();
 
-  let category: IssueAnalysis['category'] = 'other';
-  if (text.includes('bug') || text.includes('error') || text.includes('fail') || text.includes('broken')) {
-    category = 'bug';
-  } else if (text.includes('feature') || text.includes('add') || text.includes('suggest') || text.includes('request')) {
-    category = 'feature';
-  } else if (text.includes('how') || text.includes('question') || text.includes('help')) {
-    category = 'question';
-  }
+  const category: IssueAnalysis['category'] =
+    /bug|error|fail|broken/.test(text)            ? 'bug'     :
+    /feature|add|suggest|request/.test(text)      ? 'feature' :
+    /how|question|help/.test(text)                ? 'question': 'other';
 
   const priority: IssueAnalysis['priority'] =
-    text.includes('critical') || text.includes('urgent') || text.includes('crash') ? 'critical' : 'low';
+    /critical|urgent|crash/.test(text) ? 'critical' : 'low';
 
-  const burnoutRisk =
-    text.includes('immediately') ||
-    text.includes('fix this now') ||
-    text.includes('useless') ||
-    text.includes('why is this');
+  const burnoutRisk = /immediately|fix this now|useless|why is this/.test(text);
 
   return {
     category,
     priority,
     burnoutRisk,
-    reasoning: `[Fallback] category=${category}, priority=${priority}, burnoutRisk=${burnoutRisk}`,
+    reasoning: `[Fallback] category=${category}, priority=${priority}`,
   };
-};
+}
 
-// Main export — uses LLM if available, otherwise falls back to rules
-export const runTriageAgent = async (title: string, body: string): Promise<IssueAnalysis> => {
-  const model = createModel();
+// ── Main export ───────────────────────────────────────────────────────────────
+// Analyzes a GitHub issue and returns structured triage data.
 
-  if (!model) return runFallbackAnalysis(title, body);
+export async function runTriageAgent(title: string, body: string): Promise<IssueAnalysis> {
+  const llm = createLLM();
+  if (!llm) return fallbackAnalysis(title, body);
 
   try {
-    const response = await model.invoke([
+    const response = await llm.invoke([
       new SystemMessage(TRIAGE_SYSTEM_PROMPT),
-      new HumanMessage(`Analyze the following GitHub issue:\nTitle: ${title}\nBody: ${body}`),
+      new HumanMessage(`Title: ${title}\nBody: ${body}`),
     ]);
 
-    const rawContent =
-      typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+    const raw = typeof response.content === 'string'
+      ? response.content
+      : JSON.stringify(response.content);
 
-    return parseLLMResponse(rawContent);
-  } catch (err: any) {
-    logger.error(`[TriageAgent] LLM call failed: ${err.message} — falling back to rules.`);
-    return runFallbackAnalysis(title, body);
+    const parsed = JSON.parse(stripMarkdown(raw));
+
+    return {
+      category:    parsed.category    || 'other',
+      priority:    parsed.priority    || 'low',
+      burnoutRisk: !!parsed.burnoutRisk,
+      reasoning:   parsed.reasoning   || '',
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`TriageAgent: LLM failed (${msg}) — using fallback`);
+    return fallbackAnalysis(title, body);
   }
-};
+}

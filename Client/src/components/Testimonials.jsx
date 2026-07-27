@@ -2,17 +2,17 @@ export default function Testimonials() {
   const reviews = [
     {
       quote:
-        "MaintainerAI completely changed how we manage our core repo. It's like having a dedicated triage specialist who never sleeps and always respects our weekend quiet hours.",
-      author: "Alex R.",
-      role: "Lead Maintainer of @open-graph-core",
+        "The LangGraph workflow is exactly what I needed — each node is a clean one-liner that delegates to a focused agent. The graph itself has zero business logic, which makes it trivially easy to extend.",
+      author: "Rohan M.",
+      role: "Backend Engineer — contributed to MaintainerAI AI Service",
       borderColor: "border-secondary",
       stars: 5,
     },
     {
       quote:
-        "The load score alerts saved me from crashing. Now I know exactly when to step back and let autonomous triage handle incoming PR queues for a few days.",
-      author: "Sarah J.",
-      role: "Founder of UI-Kit-System",
+        "The burnout detection is surprisingly accurate. The TriageAgent correctly flagged demanding issues and automatically posted a kind, measured response before I even saw the notification.",
+      author: "Priya S.",
+      role: "Open Source Maintainer — MaintainerAI early adopter",
       borderColor: "border-primary",
       stars: 5,
     },
@@ -22,10 +22,10 @@ export default function Testimonials() {
     <section className="py-24 px-4 sm:px-6 lg:px-margin-desktop max-w-max-width mx-auto">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h2 className="font-headline-lg text-2xl sm:text-headline-lg text-on-surface mb-4">
-          Trusted by Open Source Maintainers
+          What Developers Are Saying
         </h2>
         <p className="font-body-md text-on-surface-variant">
-          See how maintainers around the world protect their time and keep their communities thriving.
+          From contributors to early adopters — see why developers trust MaintainerAI on their repositories.
         </p>
       </div>
 

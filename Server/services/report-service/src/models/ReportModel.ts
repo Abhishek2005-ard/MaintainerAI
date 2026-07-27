@@ -1,27 +1,70 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
-const ReportSchema = new mongoose.Schema({
-  issue: {
-    issueId: { type: String, required: true },
-    number: { type: Number, required: true },
-    title: { type: String, required: true },
-    body: { type: String, default: '' },
-    author: { type: String, required: true },
-    owner: { type: String, required: true },
-    repoName: { type: String, required: true },
-  },
-  isDuplicate: { type: Boolean, default: false },
-  duplicateOfNumber: { type: Number, default: null },
-  analysis: {
-    category: { type: String, default: null },
-    priority: { type: String, default: null },
-    burnoutRisk: { type: Boolean, default: false },
-    reasoning: { type: String, default: null },
-  },
-  predictedLabels: [{ type: String }],
-  predictedPriority: { type: String, default: 'low' },
-  executionLogs: [{ type: String }],
-  triageCompletedAt: { type: Date, required: true },
-}, { timestamps: true });
+// ─── Interfaces ──────────────────────────────────────────────────────────────
 
-export const ReportModel = mongoose.models.Report || mongoose.model('Report', ReportSchema);
+interface IssueSnapshot {
+  issueId:  string;
+  number:   number;
+  title:    string;
+  body:     string;
+  author:   string;
+  owner:    string;
+  repoName: string;
+}
+
+interface TriageAnalysis {
+  category:    string | null;
+  priority:    string | null;
+  burnoutRisk: boolean;
+  reasoning:  string | null;
+}
+
+export interface IReport extends Document {
+  issue:              IssueSnapshot;
+  isDuplicate:        boolean;
+  duplicateOfNumber:  number | null;
+  analysis:           TriageAnalysis;
+  predictedLabels:    string[];
+  predictedPriority:  string;
+  executionLogs:      string[];
+  triageCompletedAt:  Date;
+}
+
+// ─── Schema ──────────────────────────────────────────────────────────────────
+
+const ReportSchema = new Schema<IReport>(
+  {
+    issue: {
+      issueId:  { type: String, required: true },
+      number:   { type: Number, required: true },
+      title:    { type: String, required: true },
+      body:     { type: String, default: '' },
+      author:   { type: String, required: true },
+      owner:    { type: String, required: true },
+      repoName: { type: String, required: true },
+    },
+
+    isDuplicate:       { type: Boolean, default: false },
+    duplicateOfNumber: { type: Number,  default: null },
+
+    analysis: {
+      category:    { type: String,  default: null },
+      priority:    { type: String,  default: null },
+      burnoutRisk: { type: Boolean, default: false },
+      reasoning:   { type: String,  default: null },
+    },
+
+    predictedLabels:   [{ type: String }],
+    predictedPriority: { type: String, default: 'low' },
+    executionLogs:     [{ type: String }],
+    triageCompletedAt: { type: Date, required: true },
+  },
+  { timestamps: true },
+);
+
+// ─── Model ───────────────────────────────────────────────────────────────────
+
+// Guard against model re-registration in watch/hot-reload environments.
+export const ReportModel =
+  (mongoose.models.Report as mongoose.Model<IReport>) ||
+  mongoose.model<IReport>('Report', ReportSchema);

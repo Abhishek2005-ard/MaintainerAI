@@ -1,354 +1,175 @@
-/**
- * IssueTriageWorkflow — Main LangGraph workflow
- *
- * Flow:
- *
- *   START
- *     │
- *   receiveIssue ──▶ fetchRepoContext ──▶ fetchSimilarIssues
- *     │
- *   generateEmbedding ──▶ compareSimilarity
- *     │                          │
- *     │              isDuplicate=true ──▶ markDuplicate ──▶ updateGitHub ──▶ saveResults ──▶ notifyReportService ──▶ END
- *     │              isDuplicate=false ──▶ reasonWithLLM ──▶ predictLabels ──▶ updateGitHub ──▶ saveResults ──▶ notifyReportService ──▶ END
- */
-
 import { StateGraph, START, END } from '@langchain/langgraph';
-import { IssueTriageState } from './workflowState.js';
+import { Annotation } from '@langchain/langgraph';
 import { triageMemory } from '../memory/triageMemory.js';
 import { runTriageAgent } from '../agents/TriageAgent.js';
-import { generateTextEmbedding, cosineSimilarity } from '../tools/embeddingTools.js';
-import * as githubTools from '../tools/githubTools.js';
-import * as reportTools from '../tools/reportTools.js';
-import { LABEL_PREDICTION_PROMPT } from '../prompts/triagePrompts.js';
+import { predictLabels } from '../agents/LabelAgent.js';
+import { detectDuplicate } from '../agents/DuplicateAgent.js';
+import * as GitHub from '../agents/GitHubAgent.js';
+import { sendReport } from '../agents/ReportAgent.js';
 import { logger } from '../utils/logger.js';
-import { env } from '../config/env.js';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import type { IssuePayload } from '../types/index.js';
+import type { IssuePayload, RepoContext, SimilarIssue, IssueAnalysis } from '../types/index.js';
 
-// Issues with cosine similarity above this threshold are flagged as duplicates
-const DUPLICATE_THRESHOLD = 0.88;
+// ── Graph State ───────────────────────────────────────────────────────────────
+// Every node receives this state and returns a partial update.
 
-// ---- LLM factory (shared across nodes that need it) -----------------------
+const State = Annotation.Root({
+  issue:             Annotation<IssuePayload>(),
+  repoContext:       Annotation<RepoContext | null>(),
+  openIssues:        Annotation<SimilarIssue[]>(),
+  issueEmbedding:    Annotation<number[]>(),
+  similarityScore:   Annotation<number>(),
+  isDuplicate:       Annotation<boolean>(),
+  duplicateOfNumber: Annotation<number | null>(),
+  llmAnalysis:       Annotation<IssueAnalysis | null>(),
+  predictedLabels:   Annotation<string[]>(),
+  predictedPriority: Annotation<string>(),
+  burnoutRisk:       Annotation<boolean>(),
+  executionLogs:     Annotation<string[]>(),
+  reported:          Annotation<boolean>(),
+});
 
-const createModel = () => {
-  if (env.GEMINI_API_KEY) {
-    return new ChatGoogleGenerativeAI({ apiKey: env.GEMINI_API_KEY, model: 'gemini-2.0-flash', maxOutputTokens: 1024 });
-  }
-  if (env.OPENAI_API_KEY) {
-    return new ChatOpenAI({ apiKey: env.OPENAI_API_KEY, modelName: 'gpt-4o-mini', temperature: 0.1 });
-  }
-  return null;
-};
+type S = typeof State.State;
 
-// ---- Node 1: receiveIssue -------------------------------------------------
+// ── Nodes ─────────────────────────────────────────────────────────────────────
+// Each node does exactly one thing and delegates to the matching agent.
 
-// Entry point — log the incoming issue and pass through unchanged
-const receiveIssueNode = async (state: typeof IssueTriageState.State) => {
-  const { number, title, owner, repoName } = state.issue;
-  logger.info(`[Workflow:receiveIssue] New issue received: ${owner}/${repoName}#${number} — "${title}"`);
+const receiveIssue = async (s: S) => {
+  logger.info(`Issue received: ${s.issue.owner}/${s.issue.repoName}#${s.issue.number} — "${s.issue.title}"`);
   return {};
 };
 
-// ---- Node 2: fetchRepoContext ---------------------------------------------
+const fetchRepoContext = async (s: S) => ({
+  repoContext: await GitHub.fetchRepoContext(s.issue.owner, s.issue.repoName),
+});
 
-// Fetch the repository's metadata from the github-service
-const fetchRepoContextNode = async (state: typeof IssueTriageState.State) => {
-  const { owner, repoName } = state.issue;
-  logger.info(`[Workflow:fetchRepoContext] Fetching context for ${owner}/${repoName}`);
+const fetchOpenIssues = async (s: S) => ({
+  openIssues: await GitHub.fetchOpenIssues(s.issue.owner, s.issue.repoName, s.issue.number),
+});
 
-  const repoContext = await githubTools.fetchRepoContext(owner, repoName);
-  return { repoContext };
-};
-
-// ---- Node 3: fetchSimilarIssues -------------------------------------------
-
-// Retrieve all open issues from the same repo — these are candidates for duplicate detection
-const fetchSimilarIssuesNode = async (state: typeof IssueTriageState.State) => {
-  const { owner, repoName } = state.issue;
-  logger.info(`[Workflow:fetchSimilarIssues] Fetching open issues for ${owner}/${repoName}`);
-
-  const similarIssues = await githubTools.fetchRepoIssues(owner, repoName);
-
-  // Exclude the current issue itself from the list
-  const filtered = similarIssues.filter((i) => i.number !== state.issue.number);
-  logger.info(`[Workflow:fetchSimilarIssues] Found ${filtered.length} candidate issue(s)`);
-
-  return { similarIssues: filtered };
-};
-
-// ---- Node 4: generateEmbedding --------------------------------------------
-
-// Create a vector embedding for the incoming issue's title + body
-const generateEmbeddingNode = async (state: typeof IssueTriageState.State) => {
-  const { title, body } = state.issue;
-  logger.info(`[Workflow:generateEmbedding] Generating embedding for issue #${state.issue.number}`);
-
-  // Combine title + body into a single text for a richer embedding
-  const text = `${title}\n\n${body}`;
-  const issueEmbedding = await generateTextEmbedding(text);
-
-  return { issueEmbedding };
-};
-
-// ---- Node 5: compareSimilarity --------------------------------------------
-
-// Compare the new issue embedding against all existing issues to detect duplicates
-const compareSimilarityNode = async (state: typeof IssueTriageState.State) => {
-  logger.info(`[Workflow:compareSimilarity] Comparing against ${state.similarIssues.length} existing issue(s)`);
-
-  // If we have no embedding (no API key), skip duplicate detection
-  if (state.issueEmbedding.length === 0) {
-    logger.warn('[Workflow:compareSimilarity] No embedding available — skipping duplicate detection');
-    return { similarityScore: 0, duplicateOfNumber: null, isDuplicate: false };
-  }
-
-  let highestScore = 0;
-  let closestIssueNumber: number | null = null;
-
-  for (const candidate of state.similarIssues) {
-    // Generate an embedding for each candidate issue
-    const candidateText = `${candidate.title}\n\n${candidate.body}`;
-    const candidateEmbedding = await generateTextEmbedding(candidateText);
-
-    const score = cosineSimilarity(state.issueEmbedding, candidateEmbedding);
-
-    if (score > highestScore) {
-      highestScore = score;
-      closestIssueNumber = candidate.number;
-    }
-  }
-
-  const isDuplicate = highestScore >= DUPLICATE_THRESHOLD;
-
-  logger.info(
-    `[Workflow:compareSimilarity] Best match: issue #${closestIssueNumber ?? 'none'} ` +
-    `(score=${highestScore.toFixed(3)}, isDuplicate=${isDuplicate})`
-  );
-
+const runDuplicateCheck = async (s: S) => {
+  const result = await detectDuplicate(s.issue, s.openIssues);
   return {
-    similarityScore: highestScore,
-    duplicateOfNumber: isDuplicate ? closestIssueNumber : null,
-    isDuplicate,
+    issueEmbedding:    result.issueEmbedding,
+    similarityScore:   result.similarityScore,
+    isDuplicate:       result.isDuplicate,
+    duplicateOfNumber: result.duplicateOfNumber,
   };
 };
 
-// ---- Conditional Edge: routeAfterSimilarity --------------------------------
-
-// Decides which node to go to after compareSimilarity based on the isDuplicate flag
-const routeAfterSimilarity = (state: typeof IssueTriageState.State): string => {
-  return state.isDuplicate ? 'markDuplicate' : 'reasonWithLLM';
-};
-
-// ---- Node 6a: markDuplicate (duplicate path) ------------------------------
-
-// Post a "duplicate of #X" comment on the issue
-const markDuplicateNode = async (state: typeof IssueTriageState.State) => {
-  const { owner, repoName, number } = state.issue;
-  logger.info(`[Workflow:markDuplicate] Issue #${number} is duplicate of #${state.duplicateOfNumber}`);
-
-  await githubTools.markIssueAsDuplicate(owner, repoName, number, state.duplicateOfNumber!);
-
+const markDuplicate = async (s: S) => {
+  await GitHub.markDuplicate(s.issue.owner, s.issue.repoName, s.issue.number, s.duplicateOfNumber!);
   return {};
 };
 
-// ---- Node 6b: reasonWithLLM (non-duplicate path) --------------------------
-
-// Use the AI agent to deeply analyse the issue: category, priority, burnout risk
-const reasonWithLLMNode = async (state: typeof IssueTriageState.State) => {
-  const { title, body } = state.issue;
-  logger.info(`[Workflow:reasonWithLLM] Running LLM analysis on issue #${state.issue.number}`);
-
-  const llmAnalysis = await runTriageAgent(title, body);
-
-  return {
-    llmAnalysis,
-    burnoutRisk: llmAnalysis.burnoutRisk,
-  };
+const reasonWithLLM = async (s: S) => {
+  const llmAnalysis = await runTriageAgent(s.issue.title, s.issue.body);
+  return { llmAnalysis, burnoutRisk: llmAnalysis.burnoutRisk };
 };
 
-// ---- Node 7: predictLabels ------------------------------------------------
-
-// Use the LLM analysis to predict specific GitHub labels and priority for the issue
-const predictLabelsNode = async (state: typeof IssueTriageState.State) => {
-  logger.info(`[Workflow:predictLabels] Predicting labels for issue #${state.issue.number}`);
-
-  const model = createModel();
-
-  // If no LLM is available, derive simple labels directly from the analysis
-  if (!model || !state.llmAnalysis) {
-    const analysis = state.llmAnalysis;
-    const labels = analysis
-      ? [`${analysis.category}`, `priority: ${analysis.priority}`, ...(analysis.burnoutRisk ? ['burnout-risk'] : [])]
-      : ['needs-triage'];
-
-    return {
-      predictedLabels: labels,
-      predictedPriority: analysis?.priority ?? 'low',
-    };
-  }
-
-  try {
-    const input = JSON.stringify({
-      category: state.llmAnalysis.category,
-      priority: state.llmAnalysis.priority,
-      burnoutRisk: state.llmAnalysis.burnoutRisk,
-    });
-
-    const response = await model.invoke([
-      new SystemMessage(LABEL_PREDICTION_PROMPT),
-      new HumanMessage(`Issue analysis:\n${input}`),
-    ]);
-
-    const raw = typeof response.content === 'string'
-      ? response.content
-      : JSON.stringify(response.content);
-
-    const parsed = JSON.parse(raw.replace(/```json/g, '').replace(/```/g, '').trim());
-
-    return {
-      predictedLabels: parsed.labels ?? [],
-      predictedPriority: parsed.priority ?? state.llmAnalysis.priority,
-    };
-  } catch (err: any) {
-    // Fall back to simple label derivation if the LLM call fails
-    logger.warn(`[Workflow:predictLabels] LLM call failed: ${err.message} — using fallback labels`);
-    const analysis = state.llmAnalysis;
-    return {
-      predictedLabels: [analysis.category, `priority: ${analysis.priority}`],
-      predictedPriority: analysis.priority,
-    };
-  }
+const runLabelPrediction = async (s: S) => {
+  const result = await predictLabels(s.llmAnalysis!);
+  return { predictedLabels: result.labels, predictedPriority: result.priority };
 };
 
-// ---- Node 8: updateGitHub -------------------------------------------------
-
-// Apply the predicted labels and post a comment if the issue has burnout risk
-const updateGitHubNode = async (state: typeof IssueTriageState.State) => {
-  const { owner, repoName, number } = state.issue;
-  logger.info(`[Workflow:updateGitHub] Applying changes to ${owner}/${repoName}#${number}`);
-
+const updateGitHub = async (s: S) => {
+  const { owner, repoName, number } = s.issue;
   const logs: string[] = [];
 
-  // If duplicate — just apply a "duplicate" label, the comment was already posted
-  if (state.isDuplicate) {
-    const ok = await githubTools.addLabelsToIssue(owner, repoName, number, ['duplicate']);
-    logs.push(`Applied label [duplicate]: ${ok ? 'success' : 'failed'}`);
-    return { executionLogs: logs };
-  }
-
-  // Apply all predicted labels in one batch call
-  if (state.predictedLabels.length > 0) {
-    const ok = await githubTools.addLabelsToIssue(owner, repoName, number, state.predictedLabels);
-    logs.push(`Applied labels [${state.predictedLabels.join(', ')}]: ${ok ? 'success' : 'failed'}`);
-  }
-
-  // Post a maintainer-wellbeing comment if the issue has a demanding/toxic tone
-  if (state.burnoutRisk) {
-    const comment =
-      'Thanks for opening this issue!\n\n' +
-      'Our maintainers are volunteers — please be kind and patient. We appreciate it!';
-    const ok = await githubTools.postCommentToIssue(owner, repoName, number, comment);
-    logs.push(`Posted burnout-risk comment: ${ok ? 'success' : 'failed'}`);
+  if (s.isDuplicate) {
+    const ok = await GitHub.applyLabels(owner, repoName, number, ['duplicate']);
+    logs.push(`Applied [duplicate]: ${ok ? 'ok' : 'failed'}`);
+  } else {
+    if (s.predictedLabels.length > 0) {
+      const ok = await GitHub.applyLabels(owner, repoName, number, s.predictedLabels);
+      logs.push(`Applied labels [${s.predictedLabels.join(', ')}]: ${ok ? 'ok' : 'failed'}`);
+    }
+    if (s.burnoutRisk) {
+      const ok = await GitHub.postComment(owner, repoName, number,
+        'Thanks for opening this issue!\n\nOur maintainers are volunteers — please be kind and patient. We appreciate it!',
+      );
+      logs.push(`Posted burnout-risk comment: ${ok ? 'ok' : 'failed'}`);
+    }
   }
 
   return { executionLogs: logs };
 };
 
-// ---- Node 9: saveResults --------------------------------------------------
-
-// Log and persist the final triage result (in-memory for now; extend with DB write as needed)
-const saveResultsNode = async (state: typeof IssueTriageState.State) => {
-  const { number, owner, repoName } = state.issue;
-
+const saveResults = async (s: S) => {
   logger.info(
-    `[Workflow:saveResults] Triage complete for ${owner}/${repoName}#${number} — ` +
-    `isDuplicate=${state.isDuplicate}, labels=[${state.predictedLabels?.join(', ') ?? ''}]`
+    `Triage done: ${s.issue.owner}/${s.issue.repoName}#${s.issue.number} ` +
+    `isDuplicate=${s.isDuplicate} labels=[${s.predictedLabels?.join(', ') ?? ''}]`,
   );
-
-  // Log each execution step for observability
-  for (const log of state.executionLogs ?? []) {
-    logger.info(`  → ${log}`);
-  }
-
   return {};
 };
 
-// ---- Node 10: notifyReportService ----------------------------------------
-
-// Fire-and-forget: send the full triage report to the report-service
-const notifyReportServiceNode = async (state: typeof IssueTriageState.State) => {
-  logger.info(`[Workflow:notifyReportService] Sending report for issue #${state.issue.number}`);
-
-  const reported = await reportTools.notifyReportService({
-    issue: state.issue,
-    isDuplicate: state.isDuplicate ?? false,
-    duplicateOfNumber: state.duplicateOfNumber ?? null,
-    analysis: state.llmAnalysis ?? null,
-    predictedLabels: state.predictedLabels ?? [],
-    predictedPriority: state.predictedPriority ?? 'low',
-    executionLogs: state.executionLogs ?? [],
+const sendReportNode = async (s: S) => {
+  const reported = await sendReport({
+    issue:             s.issue,
+    isDuplicate:       s.isDuplicate       ?? false,
+    duplicateOfNumber: s.duplicateOfNumber ?? null,
+    analysis:          s.llmAnalysis       ?? null,
+    predictedLabels:   s.predictedLabels   ?? [],
+    predictedPriority: s.predictedPriority ?? 'low',
+    executionLogs:     s.executionLogs     ?? [],
     triageCompletedAt: new Date().toISOString(),
   });
-
   return { reported };
 };
 
-// ---- Graph Assembly -------------------------------------------------------
+// ── Graph ─────────────────────────────────────────────────────────────────────
+//
+//  START → receiveIssue → fetchRepoContext → fetchOpenIssues → runDuplicateCheck
+//                                                                      │
+//                                           isDuplicate=true ──────────┤
+//                                                                      │
+//                                           isDuplicate=false ─────────┤
+//                                                    │                 │
+//                                           reasonWithLLM         markDuplicate
+//                                                    │                 │
+//                                           runLabelPrediction         │
+//                                                    └─────── updateGitHub ──────┘
+//                                                                      │
+//                                                               saveResults → sendReport → END
 
-const workflow = new StateGraph(IssueTriageState)
+const workflow = new StateGraph(State)
+  .addNode('receiveIssue',      receiveIssue)
+  .addNode('fetchRepoContext',  fetchRepoContext)
+  .addNode('fetchOpenIssues',   fetchOpenIssues)
+  .addNode('runDuplicateCheck', runDuplicateCheck)
+  .addNode('markDuplicate',     markDuplicate)
+  .addNode('reasonWithLLM',     reasonWithLLM)
+  .addNode('runLabelPrediction',runLabelPrediction)
+  .addNode('updateGitHub',      updateGitHub)
+  .addNode('saveResults',       saveResults)
+  .addNode('sendReport',        sendReportNode)
 
-  // Register all nodes
-  .addNode('receiveIssue', receiveIssueNode)
-  .addNode('fetchRepoContext', fetchRepoContextNode)
-  .addNode('fetchSimilarIssues', fetchSimilarIssuesNode)
-  .addNode('generateEmbedding', generateEmbeddingNode)
-  .addNode('compareSimilarity', compareSimilarityNode)
-  .addNode('markDuplicate', markDuplicateNode)       // duplicate path
-  .addNode('reasonWithLLM', reasonWithLLMNode)       // non-duplicate path
-  .addNode('predictLabels', predictLabelsNode)
-  .addNode('updateGitHub', updateGitHubNode)
-  .addNode('saveResults', saveResultsNode)
-  .addNode('notifyReportService', notifyReportServiceNode)
+  .addEdge(START,                 'receiveIssue')
+  .addEdge('receiveIssue',        'fetchRepoContext')
+  .addEdge('fetchRepoContext',    'fetchOpenIssues')
+  .addEdge('fetchOpenIssues',     'runDuplicateCheck')
 
-  // Linear edges: START → receiveIssue → ... → compareSimilarity
-  .addEdge(START, 'receiveIssue')
-  .addEdge('receiveIssue', 'fetchRepoContext')
-  .addEdge('fetchRepoContext', 'fetchSimilarIssues')
-  .addEdge('fetchSimilarIssues', 'generateEmbedding')
-  .addEdge('generateEmbedding', 'compareSimilarity')
-
-  // Conditional edge: duplicate → markDuplicate | not duplicate → reasonWithLLM
-  .addConditionalEdges('compareSimilarity', routeAfterSimilarity, {
+  // Branch: duplicate → markDuplicate, not duplicate → reasonWithLLM
+  .addConditionalEdges('runDuplicateCheck', (s: S) => s.isDuplicate ? 'markDuplicate' : 'reasonWithLLM', {
     markDuplicate: 'markDuplicate',
     reasonWithLLM: 'reasonWithLLM',
   })
 
-  // Duplicate path: markDuplicate → updateGitHub (skip label prediction)
-  .addEdge('markDuplicate', 'updateGitHub')
+  .addEdge('markDuplicate',      'updateGitHub')      // duplicate path
+  .addEdge('reasonWithLLM',      'runLabelPrediction') // non-duplicate path
+  .addEdge('runLabelPrediction', 'updateGitHub')
 
-  // Non-duplicate path: reasonWithLLM → predictLabels → updateGitHub
-  .addEdge('reasonWithLLM', 'predictLabels')
-  .addEdge('predictLabels', 'updateGitHub')
-
-  // Both paths converge here: updateGitHub → saveResults → notifyReportService → END
-  .addEdge('updateGitHub', 'saveResults')
-  .addEdge('saveResults', 'notifyReportService')
-  .addEdge('notifyReportService', END);
+  .addEdge('updateGitHub',  'saveResults')
+  .addEdge('saveResults',   'sendReport')
+  .addEdge('sendReport',    END);
 
 export const issueTriageWorkflow = workflow.compile({ checkpointer: triageMemory });
 
-// ---- Public entry point ---------------------------------------------------
+// ── Entry point ───────────────────────────────────────────────────────────────
 
-// Run the full IssueTriageWorkflow for a single issue
-export const runWorkflow = async (issue: IssuePayload) => {
+export async function runWorkflow(issue: IssuePayload) {
   const config = { configurable: { thread_id: `triage-${issue.issueId}` } };
-  logger.info(`[IssueTriageWorkflow] Starting workflow for thread: ${config.configurable.thread_id}`);
-
+  logger.info(`Workflow started: thread=${config.configurable.thread_id}`);
   const finalState = await issueTriageWorkflow.invoke({ issue }, config);
-
-  logger.info(`[IssueTriageWorkflow] Workflow complete for thread: ${config.configurable.thread_id}`);
+  logger.info(`Workflow complete: thread=${config.configurable.thread_id}`);
   return finalState;
-};
+}
