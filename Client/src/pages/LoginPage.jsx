@@ -3,35 +3,39 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { auth as authApi } from '../services/api';
 
+// Module-level Set to prevent duplicate OAuth code exchanges (common in React StrictMode)
+const processedCodes = new Set();
+
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const processedCodeRef = useRef(null);
+
+  const code = searchParams.get('code');
 
   // Handle OAuth callback: ?code=xxx arrives here after GitHub redirects back
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code || processedCodeRef.current === code) return;
-    processedCodeRef.current = code;
+    if (!code || processedCodes.has(code)) return;
+    processedCodes.add(code);
 
-    setLoading(true);
-    setError(null);
-
-    authApi.handleCallback(code)
-      .then(({ token, user }) => {
+    async function handleAuth() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { token, user } = await authApi.handleCallback(code);
         window.history.replaceState({}, document.title, '/login');
         login(user, token);
         navigate('/dashboard', { replace: true });
-      })
-      .catch((err) => {
+      } catch (err) {
         window.history.replaceState({}, document.title, '/login');
         setError(err.message || 'Authentication failed. Please click "Continue with GitHub" to try again.');
         setLoading(false);
-      });
-  }, [searchParams, login, navigate]);
+      }
+    }
+    handleAuth();
+  }, [code, login, navigate]);
 
   // Already logged in — redirect
   useEffect(() => {
@@ -39,8 +43,8 @@ export default function LoginPage() {
   }, [isAuthenticated, navigate]);
 
   // Build GitHub OAuth URL directly — no backend call needed for this step
-  const GITHUB_CLIENT_ID = 'Iv23lithpHPqnlhPNPCv';
-  const CALLBACK_URL = 'http://localhost:5173/login';
+  const GITHUB_CLIENT_ID = 'Iv23licHQX1HeURlZs4L';
+  const CALLBACK_URL = 'http://127.0.0.1:5173/login';
 
   const handleLogin = () => {
     const params = new URLSearchParams({

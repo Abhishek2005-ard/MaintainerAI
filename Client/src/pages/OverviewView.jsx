@@ -44,9 +44,17 @@ export default function OverviewView() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    reportsApi.getDashboardStats()
-      .then(({ stats }) => { setStats(stats); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
+    async function loadStats() {
+      try {
+        const { stats } = await reportsApi.getDashboardStats();
+        setStats(stats);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
   }, []);
 
   const duplicateRate = stats

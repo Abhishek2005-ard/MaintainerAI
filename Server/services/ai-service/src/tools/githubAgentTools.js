@@ -13,11 +13,15 @@ const headers = () => ({
 // Get repository info (description, triage status, etc.)
 export const getRepoInfoTool = tool(
   async ({ owner, repo }) => {
-    const res = await fetch(`${base}/repos`, { headers: headers() });
-    if (!res.ok) return `Failed to fetch repos (${res.status})`;
-    const data = await res.json();
-    const match = (data.repositories || []).find((r) => r.owner === owner && r.name === repo);
-    return match ? JSON.stringify(match) : `Repo ${owner}/${repo} not found`;
+    try {
+      const res = await fetch(`${base}/repos`, { headers: headers() });
+      if (!res.ok) return `Failed to fetch repos (${res.status})`;
+      const data = await res.json();
+      const match = (data.repositories || []).find((r) => r.owner === owner && r.name === repo);
+      return match ? JSON.stringify(match) : `Repo ${owner}/${repo} not found`;
+    } catch (err) {
+      return `Failed to fetch repository metadata: ${err.message}`;
+    }
   },
   {
     name: 'get_repo_info',
@@ -32,10 +36,14 @@ export const getRepoInfoTool = tool(
 // Fetch issues for a repo
 export const getIssuesTool = tool(
   async ({ owner, repo, state = 'open' }) => {
-    const res = await fetch(`${base}/repos/${owner}/${repo}/issues?state=${state}`, { headers: headers() });
-    if (!res.ok) return `Failed to fetch issues (${res.status})`;
-    const data = await res.json();
-    return JSON.stringify(data.issues || []);
+    try {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/issues?state=${state}`, { headers: headers() });
+      if (!res.ok) return `Failed to fetch issues (${res.status})`;
+      const data = await res.json();
+      return JSON.stringify(data.issues || []);
+    } catch (err) {
+      return `Failed to fetch issues: ${err.message}`;
+    }
   },
   {
     name: 'get_issues',
@@ -51,10 +59,14 @@ export const getIssuesTool = tool(
 // Add labels to an issue
 export const addLabelsTool = tool(
   async ({ owner, repo, issueNumber, labels }) => {
-    const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      method: 'PATCH', headers: headers(), body: JSON.stringify({ labels }),
-    });
-    return res.ok ? `Labels [${labels.join(', ')}] added to #${issueNumber}` : `Failed (${res.status})`;
+    try {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+        method: 'PATCH', headers: headers(), body: JSON.stringify({ labels }),
+      });
+      return res.ok ? `Labels [${labels.join(', ')}] added to #${issueNumber}` : `Failed (${res.status})`;
+    } catch (err) {
+      return `Failed to add labels: ${err.message}`;
+    }
   },
   {
     name: 'add_labels',
@@ -71,10 +83,14 @@ export const addLabelsTool = tool(
 // Post a comment on an issue
 export const postCommentTool = tool(
   async ({ owner, repo, issueNumber, body }) => {
-    const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}/comments`, {
-      method: 'POST', headers: headers(), body: JSON.stringify({ body }),
-    });
-    return res.ok ? `Comment posted on #${issueNumber}` : `Failed (${res.status})`;
+    try {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}/comments`, {
+        method: 'POST', headers: headers(), body: JSON.stringify({ body }),
+      });
+      return res.ok ? `Comment posted on #${issueNumber}` : `Failed (${res.status})`;
+    } catch (err) {
+      return `Failed to post comment: ${err.message}`;
+    }
   },
   {
     name: 'post_comment',
@@ -91,10 +107,14 @@ export const postCommentTool = tool(
 // Close an issue
 export const closeIssueTool = tool(
   async ({ owner, repo, issueNumber }) => {
-    const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      method: 'PATCH', headers: headers(), body: JSON.stringify({ state: 'closed' }),
-    });
-    return res.ok ? `Issue #${issueNumber} closed` : `Failed (${res.status})`;
+    try {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+        method: 'PATCH', headers: headers(), body: JSON.stringify({ state: 'closed' }),
+      });
+      return res.ok ? `Issue #${issueNumber} closed` : `Failed (${res.status})`;
+    } catch (err) {
+      return `Failed to close issue: ${err.message}`;
+    }
   },
   {
     name: 'close_issue',
@@ -110,10 +130,14 @@ export const closeIssueTool = tool(
 // Reopen a closed issue
 export const reopenIssueTool = tool(
   async ({ owner, repo, issueNumber }) => {
-    const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      method: 'PATCH', headers: headers(), body: JSON.stringify({ state: 'open' }),
-    });
-    return res.ok ? `Issue #${issueNumber} reopened` : `Failed (${res.status})`;
+    try {
+      const res = await fetch(`${base}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+        method: 'PATCH', headers: headers(), body: JSON.stringify({ state: 'open' }),
+      });
+      return res.ok ? `Issue #${issueNumber} reopened` : `Failed (${res.status})`;
+    } catch (err) {
+      return `Failed to reopen issue: ${err.message}`;
+    }
   },
   {
     name: 'reopen_issue',

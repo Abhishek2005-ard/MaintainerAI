@@ -111,9 +111,14 @@ export const getUserProfile = async (token) => {
   const octokit = new Octokit({ auth: token });
   const { data: user } = await octokit.rest.users.getAuthenticated();
 
-  // Get emails
-  const { data: emails } = await octokit.rest.users.listEmailsForAuthenticatedUser();
-  const primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email || '';
+  let primaryEmail = '';
+  try {
+    const { data: emails } = await octokit.rest.users.listEmailsForAuthenticatedUser();
+    primaryEmail = emails.find(e => e.primary)?.email || emails[0]?.email || '';
+  } catch (err) {
+    logger.warn(`Could not fetch user emails from GitHub: ${err.message}. Using public profile email or fallback.`);
+    primaryEmail = user.email || `${user.login}@users.noreply.github.com`;
+  }
 
   return {
     id: user.id,

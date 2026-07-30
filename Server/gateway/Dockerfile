@@ -16,14 +16,14 @@ WORKDIR /app
 # Copy dependencies and source files
 COPY --from=builder /app/node_modules ./node_modules
 COPY package*.json ./
-COPY src/ ./src/
+COPY index.js ./
 
 # Set environment
 ENV NODE_ENV=production
-ENV PORT=8003
+ENV PORT=8000
 
 # Expose port
-EXPOSE 8003
+EXPOSE 8000
 
 # Start command
 CMD ["npm", "start"]

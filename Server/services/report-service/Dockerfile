@@ -20,10 +20,10 @@ COPY src/ ./src/
 
 # Set environment
 ENV NODE_ENV=production
-ENV PORT=8003
+ENV PORT=8004
 
 # Expose port
-EXPOSE 8003
+EXPOSE 8004
 
 # Start command
 CMD ["npm", "start"]

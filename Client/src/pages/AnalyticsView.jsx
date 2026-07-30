@@ -71,16 +71,21 @@ export default function AnalyticsView() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    Promise.all([reportsApi.getDashboardStats(), reportsApi.getWeeklyDigest()])
-      .then(([statsRes, digestRes]) => {
+    async function loadData() {
+      try {
+        const [statsRes, digestRes] = await Promise.all([
+          reportsApi.getDashboardStats(),
+          reportsApi.getWeeklyDigest(),
+        ]);
         setStats(statsRes.stats);
         setDigest(digestRes.digest);
-        setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message);
+      } finally {
         setLoading(false);
-      });
+      }
+    }
+    loadData();
   }, []);
 
   return (

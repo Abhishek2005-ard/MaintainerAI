@@ -65,12 +65,17 @@ const callLLM = async (system, user) => {
 
   if (!llm) return 'No LLM configured';
   
-  // MAKE SURE IT IS OBVIOUS WHERE WE USE THE AI API
-  logger.info('aiAgentTools: Calling AI API to answer query...');
-  const res = await llm.invoke([new SystemMessage(system), new HumanMessage(user)]);
-  logger.info('aiAgentTools: AI API responded successfully.');
-  
-  return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+  try {
+    // MAKE SURE IT IS OBVIOUS WHERE WE USE THE AI API
+    logger.info('aiAgentTools: Calling AI API to answer query...');
+    const res = await llm.invoke([new SystemMessage(system), new HumanMessage(user)]);
+    logger.info('aiAgentTools: AI API responded successfully.');
+    
+    return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+  } catch (err) {
+    logger.error(`aiAgentTools: Failed to invoke LLM: ${err.message}`);
+    return `Error: LLM invocation failed - ${err.message}`;
+  }
 };
 
 // Tool 1 — generate a numeric embedding vector for a piece of text

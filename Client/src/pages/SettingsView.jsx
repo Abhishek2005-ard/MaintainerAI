@@ -50,12 +50,17 @@ export default function SettingsView() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const loadRepos = () => {
+  const loadRepos = async () => {
     setLoading(true);
     setError(null);
-    reposApi.list()
-      .then(({ repositories }) => { setRepos(repositories || []); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
+    try {
+      const { repositories } = await reposApi.list();
+      setRepos(repositories || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadRepos(); }, []);

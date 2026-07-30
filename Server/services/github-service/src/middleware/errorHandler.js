@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env } from '../config/env.js';
+import fs from 'fs';
 
 export const errorHandler = (err, req, res, next) => {
   let error = err;
@@ -14,6 +15,14 @@ export const errorHandler = (err, req, res, next) => {
   logger.error(`Error: ${error.message}`);
   if (error.stack) {
     logger.debug(error.stack);
+  }
+
+  // Write error to a log file on disk so we can diagnose issues
+  try {
+    const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${error.statusCode} - ${error.message}\nStack: ${error.stack}\n\n`;
+    fs.appendFileSync('c:/Users/Admin/Desktop/MaintainerAI/Server/error.log', logMsg);
+  } catch (fsErr) {
+    logger.error(`Failed to write to error.log: ${fsErr.message}`);
   }
 
   const response = {

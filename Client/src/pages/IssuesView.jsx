@@ -34,18 +34,20 @@ export default function IssuesView() {
 
   // Load repos on mount
   useEffect(() => {
-    reposApi.list()
-      .then(({ repositories }) => {
+    async function fetchRepos() {
+      try {
+        const { repositories } = await reposApi.list();
         setRepositories(repositories || []);
         if (repositories?.length > 0) {
           setSelectedRepo(repositories[0].fullName);
         }
-        setLoadingRepos(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message);
+      } finally {
         setLoadingRepos(false);
-      });
+      }
+    }
+    fetchRepos();
   }, []);
 
   // Load issues when repo or state changes
@@ -54,17 +56,19 @@ export default function IssuesView() {
     const [owner, repo] = selectedRepo.split('/');
     if (!owner || !repo) return;
 
-    setLoadingIssues(true);
-    setError(null);
-    issuesApi.list(owner, repo, stateFilter)
-      .then(({ issues }) => {
+    async function fetchIssues() {
+      setLoadingIssues(true);
+      setError(null);
+      try {
+        const { issues } = await issuesApi.list(owner, repo, stateFilter);
         setIssues(issues || []);
-        setLoadingIssues(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         setError(err.message);
+      } finally {
         setLoadingIssues(false);
-      });
+      }
+    }
+    fetchIssues();
   }, [selectedRepo, stateFilter]);
 
   return (

@@ -20,9 +20,9 @@ const app  = express();
 const PORT = parseInt(process.env.PORT || '8000', 10);
 
 // ── Upstream service URLs (override via .env in production) ──────────────────
-const AI_SERVICE_URL     = process.env.AI_SERVICE_URL     || 'http://localhost:8002';
-const GITHUB_SERVICE_URL = process.env.GITHUB_SERVICE_URL || 'http://localhost:8003';
-const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://localhost:8004';
+const AI_SERVICE_URL     = process.env.AI_SERVICE_URL     || 'http://127.0.0.1:8002';
+const GITHUB_SERVICE_URL = process.env.GITHUB_SERVICE_URL || 'http://127.0.0.1:8003';
+const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://127.0.0.1:8004';
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
@@ -38,6 +38,17 @@ app.use('/api/github', proxy(GITHUB_SERVICE_URL));
 
 // Report Service  —  triage reports, dashboard stats, weekly digest
 app.use('/api/reports', proxy(REPORT_SERVICE_URL));
+
+// Global Error Handler for Gateway
+app.use((err, req, res, next) => {
+  const logMsg = `[${new Date().toISOString()}] GATEWAY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
+  try {
+    fs.appendFileSync(path.resolve(process.cwd(), '../error.log'), logMsg);
+  } catch (fsErr) {
+    console.error('Failed to write gateway error to log file:', fsErr.message);
+  }
+  res.status(504).json({ error: err.message || 'Gateway Proxy Error' });
+});
 
 // ── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
