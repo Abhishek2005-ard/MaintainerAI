@@ -9,5 +9,6 @@ router.use(authMiddleware);
 router.get('/', repositoryController.getRepositories);
 router.post('/sync', repositoryController.syncRepositories);
 router.post('/triage', repositoryController.toggleTriageRules);
+router.put('/:owner/:repo/rules', repositoryController.updateTriageRules);
 
 export default router;

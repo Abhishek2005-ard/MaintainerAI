@@ -5,7 +5,7 @@ import { runTriage } from '../services/TriageService.js';
 // Receives forwarded webhook from github-service and kicks off the triage workflow
 export const handleWebhook = async (req, res, next) => {
   try {
-    const { action, issue, repository } = req.body;
+    const { action, issue, repository, triageRules } = req.body;
 
     if (!action || !issue || !repository) {
       throw new ApiError(400, 'Request body must include "action", "issue", and "repository".');
@@ -13,7 +13,7 @@ export const handleWebhook = async (req, res, next) => {
 
     logger.info(`[TriageController] ${repository.fullName}#${issue.number} (action: "${action}")`);
 
-    const result = await runTriage(issue);
+    const result = await runTriage(issue, triageRules ?? null);
 
     res.status(200).json({
       success: true,

@@ -75,6 +75,16 @@ export const repos = {
       method: 'POST',
       body: JSON.stringify({ fullName, active }),
     }),
+
+  /**
+   * PUT /api/github/repos/:owner/:repo/rules  body: { customLabels, customPriorities, customPromptHints }
+   * Saves maintainer-defined triage rules for this repository.
+   */
+  updateTriageRules: (owner, repo, rules) =>
+    apiFetch(`/github/repos/${owner}/${repo}/rules`, {
+      method: 'PUT',
+      body: JSON.stringify(rules),
+    }),
 };
 
 // ── Issues ────────────────────────────────────────────────────────────────────
@@ -108,7 +118,7 @@ export const reports = {
   getDashboardStats: () => apiFetch('/reports/reports/dashboard'),
 
   /**
-   * GET /api/reports/reports?owner=&repoName=&isDuplicate=
+   * GET /api/reports/reports?owner=&repoName=&isDuplicate=&number=
    * Returns { reports: [...] }
    */
   getAll: (filters = {}) => {
@@ -116,9 +126,17 @@ export const reports = {
     if (filters.owner) params.set('owner', filters.owner);
     if (filters.repoName) params.set('repoName', filters.repoName);
     if (filters.isDuplicate !== undefined) params.set('isDuplicate', filters.isDuplicate);
+    if (filters.number !== undefined) params.set('number', filters.number);
     const qs = params.toString();
     return apiFetch(`/reports/reports${qs ? `?${qs}` : ''}`);
   },
+
+  /**
+   * Helper to retrieve a single report for an issue.
+   * Returns { reports: [ ... ] } where the first element is the target report.
+   */
+  getByIssue: (owner, repoName, number) =>
+    reports.getAll({ owner, repoName, number }),
 
   /**
    * GET /api/reports/reports/digest

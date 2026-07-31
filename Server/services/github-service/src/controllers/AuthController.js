@@ -86,7 +86,14 @@ export const handleCallback = async (req, res, next) => {
 // GET /auth/install - Return dynamic installation URL
 export const getInstallUrl = async (req, res, next) => {
   try {
-    const slug = await githubApiService.getAppSlug();
+    // Use the env slug immediately so we always return a valid URL even if
+    // the GitHub API call fails (e.g. private key not yet configured).
+    let slug = env.GITHUB_APP_SLUG;
+    try {
+      slug = await githubApiService.getAppSlug();
+    } catch (apiErr) {
+      logger.warn(`Could not fetch live app slug, using env fallback: ${apiErr.message}`);
+    }
     const installUrl = `https://github.com/apps/${slug}/installations/new`;
     res.json({ url: installUrl });
   } catch (err) {

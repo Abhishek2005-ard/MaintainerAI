@@ -10,7 +10,13 @@ const RepositorySchema = new mongoose.Schema({
   htmlUrl: { type: String, required: true },
   description: String,
   isActive: { type: Boolean, default: true },
-  triageRulesActive: { type: Boolean, default: false }
+  triageRulesActive: { type: Boolean, default: false },
+  // Per-repository AI triage customization configured by the maintainer
+  triageRules: {
+    customLabels:       { type: [String], default: [] },
+    customPriorities:   { type: [String], default: [] },
+    customPromptHints:  { type: String,   default: '' },
+  },
 }, { timestamps: true });
 
 export const RepositoryModel = mongoose.models.Repository || mongoose.model('Repository', RepositorySchema);

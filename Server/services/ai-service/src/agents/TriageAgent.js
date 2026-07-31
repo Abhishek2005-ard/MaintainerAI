@@ -38,8 +38,8 @@ function stripMarkdown(raw) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 // Analyzes a GitHub issue and returns structured triage data.
-
-export async function runTriageAgent(title, body) {
+// customHints: optional per-repo prompt additions from maintainer-configured triage rules.
+export async function runTriageAgent(title, body, customHints = null) {
   let llm;
   
   // We instantiate the AI model directly in the agent so there is no separate state
@@ -64,9 +64,12 @@ export async function runTriageAgent(title, body) {
   try {
     // MAKE SURE IT IS OBVIOUS WHERE WE USE THE AI API
     logger.info('TriageAgent: Calling AI API to analyze the issue text...');
+    const userContent = customHints
+      ? `Title: ${title}\nBody: ${body}\n\nAdditional triage guidelines from repo maintainer:\n${customHints}`
+      : `Title: ${title}\nBody: ${body}`;
     const response = await llm.invoke([
       new SystemMessage(TRIAGE_SYSTEM_PROMPT),
-      new HumanMessage(`Title: ${title}\nBody: ${body}`),
+      new HumanMessage(userContent),
     ]);
     logger.info('TriageAgent: AI API responded successfully with issue analysis.');
 

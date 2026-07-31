@@ -75,6 +75,18 @@ export const handleIssueEvent = async (payload) => {
     logger.error(`Failed to save issue to MongoDB: ${err.message}`);
   }
 
+  // Look up any custom triage rules the maintainer has configured for this repo
+  let triageRules = null;
+  try {
+    const repoDoc = await RepositoryModel.findOne({ owner: repo.owner.login, name: repo.name });
+    if (repoDoc?.triageRules) {
+      triageRules = repoDoc.triageRules;
+      logger.info(`Loaded custom triageRules for ${repo.full_name}: hints="${triageRules.customPromptHints?.slice(0, 60)}..."`);
+    }
+  } catch (err) {
+    logger.warn(`Could not load triageRules for ${repo.full_name}: ${err.message}`);
+  }
+
   const forwardUrl = `${env.AGENT_SERVICE_URL}/webhook`;
   logger.info(`Forwarding issue event to Agent Service at ${forwardUrl}...`);
 
@@ -85,6 +97,7 @@ export const handleIssueEvent = async (payload) => {
         action,
         issue: issueData,
         repository: { id: repo.id, name: repo.name, fullName: repo.full_name, owner: repo.owner.login },
+        triageRules,
       }),
     });
     if (!response.ok) {

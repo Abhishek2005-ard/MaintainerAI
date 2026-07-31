@@ -23,4 +23,6 @@ export const env = {
   JWT_SECRET:         process.env.JWT_SECRET           || 'super_secret_jwt_key_2026',
   GEMINI_API_KEY:     process.env.GEMINI_API_KEY       || '',
   OPENAI_API_KEY:     process.env.OPENAI_API_KEY       || '',
+  // MongoDB URI for LangGraph persistent checkpointer (stores triage workflow state)
+  AI_MONGO_URI:       process.env.AI_MONGO_URI         || 'mongodb://127.0.0.1:27017/maintainer_ai_langgraph',
 };

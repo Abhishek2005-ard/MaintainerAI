@@ -1,6 +1,7 @@
 import { StateGraph, START, END } from '@langchain/langgraph';
 import { Annotation } from '@langchain/langgraph';
-import { triageMemory } from '../memory/triageMemory.js';
+import { MemorySaver } from '@langchain/langgraph';
+import { getMongoCheckpointer } from '../memory/mongoCheckpointer.js';
 import { runTriageAgent } from '../agents/TriageAgent.js';
 import { predictLabels } from '../agents/LabelAgent.js';
 import { detectDuplicate } from '../agents/DuplicateAgent.js';
@@ -13,6 +14,7 @@ import { logger } from '../utils/logger.js';
 
 const State = Annotation.Root({
   issue:             Annotation(),
+  triageRules:       Annotation(),  // Optional per-repo rules { customLabels, customPromptHints }
   repoContext:       Annotation(),
   openIssues:        Annotation(),
   issueEmbedding:    Annotation(),
@@ -59,7 +61,9 @@ const markDuplicate = async (s) => {
 };
 
 const reasonWithLLM = async (s) => {
-  const llmAnalysis = await runTriageAgent(s.issue.title, s.issue.body);
+  // Pass custom prompt hints from per-repo triage rules if configured.
+  const customHints = s.triageRules?.customPromptHints || null;
+  const llmAnalysis = await runTriageAgent(s.issue.title, s.issue.body, customHints);
   return { llmAnalysis, burnoutRisk: llmAnalysis.burnoutRisk };
 };
 
@@ -146,14 +150,28 @@ const workflow = new StateGraph(State)
   .addEdge('saveResults',   'sendReport')
   .addEdge('sendReport',    END);
 
-export const issueTriageWorkflow = workflow.compile({ checkpointer: triageMemory });
+// ── Compile with MongoDB checkpointer (falls back to in-memory) ───────────────
+
+let _compiledWorkflow = null;
+
+async function getCompiledWorkflow() {
+  if (_compiledWorkflow) return _compiledWorkflow;
+  const mongoCheckpointer = await getMongoCheckpointer();
+  const checkpointer = mongoCheckpointer ?? new MemorySaver();
+  if (!mongoCheckpointer) {
+    logger.warn('[Workflow] Using in-memory MemorySaver — state will not survive restarts.');
+  }
+  _compiledWorkflow = workflow.compile({ checkpointer });
+  return _compiledWorkflow;
+}
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
-export async function runWorkflow(issue) {
+export async function runWorkflow(issue, triageRules = null) {
+  const compiled = await getCompiledWorkflow();
   const config = { configurable: { thread_id: `triage-${issue.issueId}` } };
   logger.info(`Workflow started: thread=${config.configurable.thread_id}`);
-  const finalState = await issueTriageWorkflow.invoke({ issue }, config);
+  const finalState = await compiled.invoke({ issue, triageRules }, config);
   logger.info(`Workflow complete: thread=${config.configurable.thread_id}`);
   return finalState;
 }

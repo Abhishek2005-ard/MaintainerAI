@@ -64,3 +64,26 @@ export const toggleTriageRulesForRepo = async (fullName, active) => {
 
   return repo;
 };
+
+// Saves custom triage rules set by the maintainer for a specific repository
+export const saveTriageRules = async (owner, name, rules) => {
+  const { customLabels, customPriorities, customPromptHints } = rules;
+
+  const repo = await RepositoryModel.findOneAndUpdate(
+    { owner, name },
+    {
+      $set: {
+        'triageRules.customLabels':      customLabels      ?? [],
+        'triageRules.customPriorities':  customPriorities  ?? [],
+        'triageRules.customPromptHints': customPromptHints ?? '',
+      },
+    },
+    { new: true }
+  );
+
+  if (!repo) {
+    throw new ApiError(404, `Repository ${owner}/${name} not found.`);
+  }
+
+  return repo;
+};

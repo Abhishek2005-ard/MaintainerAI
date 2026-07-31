@@ -36,15 +36,16 @@ export const createTriageReport = async (req, res, next) => {
   }
 };
 
-/** GET /reports — List reports, optionally filtered by owner, repoName, or isDuplicate. */
+/** GET /reports — List reports, optionally filtered by owner, repoName, isDuplicate, or number. */
 export const getReports = async (req, res, next) => {
   try {
-    const { owner, repoName, isDuplicate } = req.query;
+    const { owner, repoName, isDuplicate, number } = req.query;
 
     const filter = {};
     if (owner)       filter['issue.owner']    = owner;
     if (repoName)    filter['issue.repoName'] = repoName;
     if (isDuplicate) filter.isDuplicate       = isDuplicate === 'true';
+    if (number)      filter['issue.number']   = parseInt(number, 10);
 
     const reports = await ReportModel.find(filter).sort({ triageCompletedAt: -1 }).limit(100);
 

@@ -12,9 +12,15 @@ export const verifySignature = (req, res, next) => {
       throw new ApiError(401, 'Signature header missing.');
     }
 
+    // Use the raw request body buffer — JSON.stringify is not equivalent to
+    // the exact bytes GitHub signed and will produce mismatched HMACs.
+    const rawBody = req.rawBody;
+    if (!rawBody) {
+      throw new ApiError(400, 'Raw body not available for signature verification.');
+    }
+
     const hmac = crypto.createHmac('sha256', env.GITHUB_WEBHOOK_SECRET);
-    const bodyStr = JSON.stringify(req.body);
-    const digest = 'sha256=' + hmac.update(bodyStr).digest('hex');
+    const digest = 'sha256=' + hmac.update(rawBody).digest('hex');
 
     if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
       logger.warn('Received webhook with invalid signature.');

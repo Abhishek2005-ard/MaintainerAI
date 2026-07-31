@@ -27,4 +27,7 @@ export const env = {
   GITHUB_CLIENT_ID:     process.env.GITHUB_CLIENT_ID        || '',
   GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET    || '',
   GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET  || '',
+  // The GitHub App's slug is used as the install URL fallback when the API is unreachable.
+  // Set this to the slug shown on your GitHub App's settings page.
+  GITHUB_APP_SLUG:      process.env.GITHUB_APP_SLUG         || 'maintainerai-abhishek-dhatrak',
 };

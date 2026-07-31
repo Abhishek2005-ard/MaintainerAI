@@ -9,15 +9,15 @@ Server/
 │   └── index.js
 │
 └── services/              (Microservices Directory)
-    ├── auth-service/      (Auth Service - Port 8001)
+    ├── github-service/    (GitHub, Auth & Webhooks - Port 8003)
     │   ├── package.json
-    │   └── index.js
-    ├── triage-service/    (Triage Service - Port 8002)
+    │   └── src/...
+    ├── ai-service/        (LangGraph Triage Workflow - Port 8002)
     │   ├── package.json
-    │   └── index.js
-    └── template-service/  (Starter template for new services)
+    │   └── src/...
+    └── report-service/    (MongoDB Triage Reports - Port 8004)
         ├── package.json
-        └── index.js
+        └── src/...
 ```
 
 ---

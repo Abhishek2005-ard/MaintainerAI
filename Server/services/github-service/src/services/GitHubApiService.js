@@ -26,16 +26,16 @@ if (env.GITHUB_APP_ID && env.GITHUB_PRIVATE_KEY) {
 export const getAppSlug = async () => {
   if (appSlugCache) return appSlugCache;
   if (!appInstance) {
-    logger.warn('GitHub App not initialized. Returning mock app slug.');
-    return 'mock-app';
+    logger.warn('GitHub App not initialized. Using env GITHUB_APP_SLUG as fallback.');
+    return env.GITHUB_APP_SLUG;
   }
   try {
     const res = await appInstance.octokit.rest.apps.getAuthenticated();
-    appSlugCache = res.data.slug || 'mock-app';
+    appSlugCache = res.data.slug || env.GITHUB_APP_SLUG;
     return appSlugCache;
   } catch (err) {
     logger.error(`Failed to fetch authenticated app details: ${err.message}`);
-    return 'mock-app';
+    return env.GITHUB_APP_SLUG;
   }
 };
 

@@ -1,6 +1,8 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, ListTodo, BarChart3, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useEffect, useState } from 'react';
+import { repos as reposApi } from '../services/api';
 
 const navigation = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -13,6 +15,33 @@ export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [installBanner, setInstallBanner] = useState(null); // 'syncing' | 'success' | 'error'
+
+  // Detect GitHub App installation redirect: /dashboard?installation_id=...&status=success
+  useEffect(() => {
+    const installationId = searchParams.get('installation_id');
+    const status = searchParams.get('status');
+    if (installationId && status === 'success') {
+      // Clear query params immediately to prevent re-triggering
+      setSearchParams({}, { replace: true });
+      setInstallBanner('syncing');
+      // Auto-sync repos for this installation
+      reposApi.sync(parseInt(installationId, 10))
+        .then(() => {
+          setInstallBanner('success');
+          setTimeout(() => {
+            setInstallBanner(null);
+            navigate('/dashboard/settings', { replace: true });
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to sync after install:', err);
+          setInstallBanner('error');
+          setTimeout(() => setInstallBanner(null), 4000);
+        });
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -83,6 +112,25 @@ export default function DashboardLayout() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-8">
+        {/* Installation success / syncing banner */}
+        {installBanner === 'syncing' && (
+          <div className="mb-6 flex items-center gap-3 p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 text-sm">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            GitHub App installed! Syncing your repositories…
+          </div>
+        )}
+        {installBanner === 'success' && (
+          <div className="mb-6 flex items-center gap-2 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm">
+            <span className="material-symbols-outlined text-base">check_circle</span>
+            Repositories synced successfully! Redirecting to Settings…
+          </div>
+        )}
+        {installBanner === 'error' && (
+          <div className="mb-6 flex items-center gap-2 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 text-sm">
+            <span className="material-symbols-outlined text-base">error</span>
+            Repository sync failed. Go to Settings and click &ldquo;Sync Repos&rdquo; manually.
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

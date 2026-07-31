@@ -3,7 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { logger } from '../utils/logger.js';
 
 // Validate the issue payload, run the full workflow, and return a clean result
-export const runTriage = async (issue) => {
+export const runTriage = async (issue, triageRules = null) => {
   const requiredFields = ['issueId', 'number', 'title', 'body', 'owner', 'repoName'];
   const missingFields = requiredFields.filter((field) => !issue[field]);
 
@@ -13,7 +13,7 @@ export const runTriage = async (issue) => {
 
   logger.info(`[TriageService] Triaging: "${issue.title}" (${issue.owner}/${issue.repoName}#${issue.number})`);
 
-  const finalState = await runWorkflow(issue);
+  const finalState = await runWorkflow(issue, triageRules);
 
   return {
     isDuplicate:       finalState.isDuplicate       ?? false,

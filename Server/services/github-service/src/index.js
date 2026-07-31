@@ -19,8 +19,15 @@ connectDB();
 // Global Middleware
 app.use(cors());
 
-// Webhooks require raw parsing or JSON depending on verification structure
-app.use(express.json());
+// Store the raw request body buffer so webhook signature verification can
+// compute the HMAC against the exact bytes GitHub sent (not re-serialized JSON).
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // Routes
 app.use('/auth', authRoutes);
