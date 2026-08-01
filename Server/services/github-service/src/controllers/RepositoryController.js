@@ -1,8 +1,23 @@
 import * as repositoryService from '../services/RepositoryService.js';
 import { ApiError } from '../utils/ApiError.js';
+import { isConnected } from '../config/db.js';
+
+// ─── DB guard ─────────────────────────────────────────────────────────────────
+function dbNotReady(res) {
+  if (!isConnected()) {
+    res.status(503).json({
+      error: 'Database unavailable — MongoDB Atlas is not connected. '
+           + 'Check GITHUB_MONGO_URI in .env and ensure your IP is whitelisted in Atlas.',
+    });
+    return true;
+  }
+  return false;
+}
+
 
 // Get all active repositories
 export const getRepositories = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const repos = await repositoryService.getActiveRepositories();
     res.json({ success: true, count: repos.length, repositories: repos });
@@ -13,6 +28,7 @@ export const getRepositories = async (req, res, next) => {
 
 // Force sync repositories for an installation
 export const syncRepositories = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { installationId } = req.body;
     if (!installationId) {
@@ -28,6 +44,7 @@ export const syncRepositories = async (req, res, next) => {
 
 // Toggle triage rules state for a repository
 export const toggleTriageRules = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { fullName, active } = req.body;
     if (!fullName) {
@@ -43,6 +60,7 @@ export const toggleTriageRules = async (req, res, next) => {
 
 // Update custom triage rules for a specific repository
 export const updateTriageRules = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo } = req.params;
     const { customLabels, customPriorities, customPromptHints } = req.body;

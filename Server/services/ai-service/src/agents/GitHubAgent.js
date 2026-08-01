@@ -22,3 +22,8 @@ export function postComment(owner, repo, number, body) {
 export function markDuplicate(owner, repo, number, duplicateOf) {
   return github.markIssueAsDuplicate(owner, repo, number, duplicateOf);
 }
+
+export function postTriageComment(owner, repo, number, analysis, labels, priority) {
+  return github.postTriageComment(owner, repo, number, analysis, labels, priority);
+}
+

@@ -1,5 +1,21 @@
 import { ReportModel } from '../models/ReportModel.js';
 import { logger } from '../utils/logger.js';
+import { isConnected } from '../config/db.js';
+
+// ─── DB guard ─────────────────────────────────────────────────────────────────
+
+/** Call at the top of any controller that needs MongoDB.
+ *  Returns true if MongoDB is NOT ready (caller should return immediately). */
+function dbNotReady(res) {
+  if (!isConnected()) {
+    res.status(503).json({
+      error: 'Database unavailable — MongoDB Atlas is not connected. '
+           + 'Check your REPORT_MONGO_URI and ensure your IP is whitelisted in Atlas.',
+    });
+    return true;
+  }
+  return false;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -22,6 +38,7 @@ function daysAgo(days) {
 
 /** POST /reports/triage — Save a triage report sent by the AI service. */
 export const createTriageReport = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const report = new ReportModel(req.body);
     await report.save();
@@ -38,6 +55,7 @@ export const createTriageReport = async (req, res, next) => {
 
 /** GET /reports — List reports, optionally filtered by owner, repoName, isDuplicate, or number. */
 export const getReports = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repoName, isDuplicate, number } = req.query;
 
@@ -57,6 +75,7 @@ export const getReports = async (req, res, next) => {
 
 /** GET /reports/dashboard — Aggregate stats across all stored reports. */
 export const getDashboardStats = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const [total, duplicates, burnoutRisk, categories, priorities] = await Promise.all([
       ReportModel.countDocuments(),
@@ -87,6 +106,7 @@ export const getDashboardStats = async (req, res, next) => {
 
 /** GET /reports/digest — Summary of reports triaged in the last 7 days. */
 export const getWeeklyDigest = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const reports = await ReportModel.find({ triageCompletedAt: { $gte: daysAgo(7) } });
 

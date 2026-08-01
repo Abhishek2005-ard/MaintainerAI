@@ -1,9 +1,24 @@
 import * as githubApiService from '../services/GitHubApiService.js';
 import * as repositoryService from '../services/RepositoryService.js';
 import { ApiError } from '../utils/ApiError.js';
+import { isConnected } from '../config/db.js';
+
+// ─── DB guard ─────────────────────────────────────────────────────────────────
+function dbNotReady(res) {
+  if (!isConnected()) {
+    res.status(503).json({
+      error: 'Database unavailable — MongoDB Atlas is not connected. '
+           + 'Check GITHUB_MONGO_URI in .env and ensure your IP is whitelisted in Atlas.',
+    });
+    return true;
+  }
+  return false;
+}
+
 
 // GET /repos/:owner/:repo/issues
 export const getIssues = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo } = req.params;
     const { state } = req.query;
@@ -24,6 +39,7 @@ export const getIssues = async (req, res, next) => {
 
 // POST /repos/:owner/:repo/issues
 export const createIssue = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo } = req.params;
     const { title, body, labels } = req.body;
@@ -50,6 +66,7 @@ export const createIssue = async (req, res, next) => {
 
 // PATCH /repos/:owner/:repo/issues/:number
 export const updateIssue = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo, number } = req.params;
     const { title, body, state, labels } = req.body;
@@ -71,6 +88,7 @@ export const updateIssue = async (req, res, next) => {
 
 // POST /repos/:owner/:repo/issues/:number/comments
 export const createComment = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo, number } = req.params;
     const { body } = req.body;
@@ -96,6 +114,7 @@ export const createComment = async (req, res, next) => {
 
 // GET /repos/:owner/:repo/issues/:number/comments
 export const getComments = async (req, res, next) => {
+  if (dbNotReady(res)) return;
   try {
     const { owner, repo, number } = req.params;
 

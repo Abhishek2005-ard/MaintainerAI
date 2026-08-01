@@ -18,7 +18,7 @@ async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const errBody = await res.json().catch(() => ({}));
-    const message = errBody?.message || `Request failed: ${res.status} ${res.statusText}`;
+    const message = errBody?.message || errBody?.error || `Request failed: ${res.status} ${res.statusText}`;
     throw new Error(message);
   }
 
@@ -105,6 +105,20 @@ export const issues = {
     apiFetch(`/github/issues/${owner}/${repo}/issues`, {
       method: 'POST',
       body: JSON.stringify({ title, body, labels }),
+    }),
+
+  /**
+   * POST /api/triage/webhook — manually triggers triage for a specific issue
+   * Sends the issue payload directly to the AI service, bypassing the tunnel.
+   */
+  triggerTriage: (issue, repository) =>
+    apiFetch('/triage/webhook', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'opened',
+        issue,
+        repository,
+      }),
     }),
 };
 

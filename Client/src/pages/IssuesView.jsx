@@ -32,6 +32,7 @@ export default function IssuesView() {
   const [loadingRepos, setLoadingRepos] = useState(true);
   const [loadingIssues, setLoadingIssues] = useState(false);
   const [error, setError] = useState(null);
+  const [triageStatus, setTriageStatus] = useState(null); // { running, current, total, results }
 
   // AI Triage Drawer States
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -64,6 +65,71 @@ export default function IssuesView() {
     setDrawerOpen(false);
     setSelectedIssue(null);
     setTriageReport(null);
+  };
+
+  // ── Triage triggers ──────────────────────────────────────────────────────────
+
+  const buildTriagePayload = (issue) => {
+    const [owner, repo] = selectedRepo.split('/');
+    const repoObj = repositories.find((r) => r.fullName === selectedRepo);
+    return {
+      issue: {
+        issueId: issue.id,
+        number: issue.number,
+        title: issue.title,
+        body: issue.body || '',
+        state: issue.state,
+        labels: (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name)),
+        owner,
+        repoName: repo,
+        author: issue.user?.login || 'unknown',
+        htmlUrl: issue.html_url,
+        githubCreatedAt: issue.created_at,
+        githubUpdatedAt: issue.updated_at,
+      },
+      repository: {
+        id: repoObj?.repoId || 0,
+        name: repo,
+        fullName: selectedRepo,
+        owner,
+      },
+    };
+  };
+
+  const runTriageForIssue = async (issue) => {
+    const { issue: issuePayload, repository } = buildTriagePayload(issue);
+    setTriageStatus({ running: true, current: 1, total: 1, results: [] });
+    try {
+      const result = await issuesApi.triggerTriage(issuePayload, repository);
+      setTriageStatus({ running: false, current: 1, total: 1, results: [{ number: issue.number, ...result.data }] });
+      // Refresh the drawer report
+      if (selectedIssue?.number === issue.number) {
+        const [owner, repo] = selectedRepo.split('/');
+        const res = await reportsApi.getByIssue(owner, repo, issue.number);
+        if (res.success && res.reports?.length > 0) setTriageReport(res.reports[0]);
+      }
+    } catch (err) {
+      setTriageStatus({ running: false, current: 1, total: 1, results: [{ number: issue.number, error: err.message }] });
+    }
+  };
+
+  const scanAllIssues = async () => {
+    if (issues.length === 0) return;
+    const results = [];
+    setTriageStatus({ running: true, current: 0, total: issues.length, results });
+
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      setTriageStatus((prev) => ({ ...prev, current: i + 1 }));
+      const { issue: issuePayload, repository } = buildTriagePayload(issue);
+      try {
+        const result = await issuesApi.triggerTriage(issuePayload, repository);
+        results.push({ number: issue.number, title: issue.title, ...result.data });
+      } catch (err) {
+        results.push({ number: issue.number, title: issue.title, error: err.message });
+      }
+    }
+    setTriageStatus({ running: false, current: issues.length, total: issues.length, results });
   };
 
   // Load repos on mount
@@ -112,10 +178,61 @@ export default function IssuesView() {
           <h1 className="text-3xl font-bold text-white">Triage Queue</h1>
           <p className="text-neutral-400 mt-1 text-sm">Real GitHub issues from your monitored repositories.</p>
         </div>
-        <span className="text-xs text-neutral-600 border border-white/10 px-3 py-1.5 rounded-lg">
-          {issues.length} issue{issues.length !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-neutral-600 border border-white/10 px-3 py-1.5 rounded-lg">
+            {issues.length} issue{issues.length !== 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={scanAllIssues}
+            disabled={triageStatus?.running || issues.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              triageStatus?.running
+                ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-500 hover:to-blue-500 active:scale-95 shadow-lg shadow-violet-500/20'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-base ${triageStatus?.running ? 'animate-spin' : ''}`}>
+              {triageStatus?.running ? 'progress_activity' : 'psychology'}
+            </span>
+            {triageStatus?.running
+              ? `Triaging ${triageStatus.current}/${triageStatus.total}…`
+              : 'Scan & Triage All'}
+          </button>
+        </div>
       </div>
+
+      {/* Triage Results Banner */}
+      {triageStatus && !triageStatus.running && triageStatus.results.length > 0 && (
+        <div className="mb-6 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-emerald-400 font-semibold text-sm flex items-center gap-2">
+              <span className="material-symbols-outlined text-base">check_circle</span>
+              Triage Complete — {triageStatus.results.length} issue(s) processed
+            </span>
+            <button
+              onClick={() => setTriageStatus(null)}
+              className="text-neutral-500 hover:text-white text-xs"
+            >Dismiss</button>
+          </div>
+          <div className="space-y-1">
+            {triageStatus.results.map((r) => (
+              <div key={r.number} className="text-xs text-neutral-300 flex items-center gap-2">
+                <span className="text-neutral-500">#{r.number}</span>
+                {r.error ? (
+                  <span className="text-red-400">Error: {r.error}</span>
+                ) : (
+                  <span>
+                    {r.isDuplicate
+                      ? `🟣 Duplicate of #${r.duplicateOfNumber}`
+                      : `✅ ${r.predictedLabels?.join(', ') || 'triaged'} — ${r.predictedPriority}`
+                    }
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -414,8 +531,18 @@ export default function IssuesView() {
                   <span className="material-symbols-outlined text-4xl text-neutral-700">report_off</span>
                   <div>
                     <p className="font-semibold text-neutral-400">No Local Triage Report</p>
-                    <p className="text-xs text-neutral-600 max-w-xs mt-1">This issue has not been triaged by the AI service yet. Webhook triage triggers only run for newly created or updated issues.</p>
+                    <p className="text-xs text-neutral-600 max-w-xs mt-1">This issue has not been triaged yet. Click the button below to run AI triage now.</p>
                   </div>
+                  <button
+                    onClick={() => runTriageForIssue(selectedIssue)}
+                    disabled={triageStatus?.running}
+                    className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white font-semibold text-sm hover:from-violet-500 hover:to-blue-500 active:scale-95 transition-all shadow-lg shadow-violet-500/20"
+                  >
+                    <span className={`material-symbols-outlined text-base ${triageStatus?.running ? 'animate-spin' : ''}`}>
+                      {triageStatus?.running ? 'progress_activity' : 'psychology'}
+                    </span>
+                    {triageStatus?.running ? 'Triaging…' : 'Run AI Triage Now'}
+                  </button>
                 </div>
               )}
             </div>

@@ -120,8 +120,8 @@ export const handleInstallationCallback = async (req, res, next) => {
     // Immediate sync of the installation and repositories details
     await installationService.syncInstallationAndRepos(installationIdNum);
 
-    // Redirect user back to the client-side dashboard
-    const redirectUrl = `${env.CLIENT_URL}/dashboard?installation_id=${installationIdNum}&status=success`;
+    // Redirect user back to the client-side dashboard settings page
+    const redirectUrl = `${env.CLIENT_URL}/dashboard/settings?installation_id=${installationIdNum}&status=success`;
     logger.info(`Redirecting user to frontend: ${redirectUrl}`);
     res.redirect(redirectUrl);
   } catch (err) {

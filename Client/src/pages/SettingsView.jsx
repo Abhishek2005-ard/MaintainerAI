@@ -182,17 +182,28 @@ export default function SettingsView() {
     }
   };
 
-  useEffect(() => { loadRepos(); }, []);
+  useEffect(() => {
+    loadRepos();
+    // Check if redirected back from GitHub App installation setup
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('status') === 'success') {
+      setSuccessMsg('GitHub App installed and repositories synced!');
+      // Clean query params from URL without reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(() => setSuccessMsg(null), 4000);
+    }
+  }, []);
 
   const handleSync = async () => {
-    if (!repos[0]?.installationId) {
-      setError('No installationId found. Try installing the GitHub App first.');
+    const instId = repos.find((r) => r.installationId)?.installationId;
+    if (!instId) {
+      setError('No installationId found. Try clicking "Add Repository" first.');
       return;
     }
     setSyncing(true);
     setError(null);
     try {
-      await reposApi.sync(repos[0].installationId);
+      await reposApi.sync(instId);
       setSuccessMsg('Repositories synced successfully!');
       loadRepos();
     } catch (err) {
@@ -217,26 +228,14 @@ export default function SettingsView() {
   };
 
   const handleInstall = async () => {
-    // IMPORTANT: window.open must be called synchronously inside the click handler.
-    // Opening it after an await causes browsers to treat it as a popup and block it.
-    const popup = window.open('about:blank', '_blank', 'noopener,noreferrer');
     try {
       const { url } = await authApi.getInstallUrl();
-      if (popup) {
-        popup.location.href = url;
-      } else {
-        // Popup was blocked — navigate the current tab as fallback
-        window.location.href = url;
-      }
+      window.location.href = url;
     } catch {
-      const fallback = 'https://github.com/apps/maintainerai-abhishek-dhatrak/installations/new';
-      if (popup) {
-        popup.location.href = fallback;
-      } else {
-        window.location.href = fallback;
-      }
+      window.location.href = 'https://github.com/apps/maintainerai-abhishek-dhatrak/installations/new';
     }
   };
+
 
   return (
     <div>

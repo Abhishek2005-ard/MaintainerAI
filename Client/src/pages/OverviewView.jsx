@@ -76,9 +76,19 @@ export default function OverviewView() {
       {error && (
         <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
           <span className="font-semibold">Could not load stats:</span> {error}
-          <br /><span className="text-xs text-red-500">Make sure the backend Gateway is running on port 8000.</span>
+          <br />
+          {error.toLowerCase().includes('database') || error.toLowerCase().includes('mongo') ? (
+            <span className="text-xs text-red-500">
+              MongoDB Atlas is not reachable. Go to <strong>Atlas → Network Access</strong> and add your current IP address to the whitelist, then restart the report-service.
+            </span>
+          ) : (
+            <span className="text-xs text-red-500">
+              Make sure the backend Gateway is running on port 8000 (<code>cd Server/gateway &amp;&amp; npm run dev</code>).
+            </span>
+          )}
         </div>
       )}
+
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

@@ -77,23 +77,37 @@ const updateGitHub = async (s) => {
   const logs = [];
 
   if (s.isDuplicate) {
+    // markDuplicate already posted the duplicate comment — just apply the label
     const ok = await GitHub.applyLabels(owner, repoName, number, ['duplicate']);
-    logs.push(`Applied [duplicate]: ${ok ? 'ok' : 'failed'}`);
+    logs.push(`Applied [duplicate] label: ${ok ? 'ok' : 'failed'}`);
   } else {
+    // Apply predicted labels
     if (s.predictedLabels && s.predictedLabels.length > 0) {
       const ok = await GitHub.applyLabels(owner, repoName, number, s.predictedLabels);
       logs.push(`Applied labels [${s.predictedLabels.join(', ')}]: ${ok ? 'ok' : 'failed'}`);
     }
+
+    // Post rich triage summary comment on GitHub
+    const ok = await GitHub.postTriageComment(
+      owner, repoName, number,
+      s.llmAnalysis,
+      s.predictedLabels ?? [],
+      s.predictedPriority ?? 'low',
+    );
+    logs.push(`Posted triage summary comment: ${ok ? 'ok' : 'failed'}`);
+
+    // Extra burnout-risk comment if flagged
     if (s.burnoutRisk) {
-      const ok = await GitHub.postComment(owner, repoName, number,
+      const ok2 = await GitHub.postComment(owner, repoName, number,
         'Thanks for opening this issue!\n\nOur maintainers are volunteers — please be kind and patient. We appreciate it!',
       );
-      logs.push(`Posted burnout-risk comment: ${ok ? 'ok' : 'failed'}`);
+      logs.push(`Posted burnout-risk comment: ${ok2 ? 'ok' : 'failed'}`);
     }
   }
 
   return { executionLogs: logs };
 };
+
 
 const saveResults = async (s) => {
   logger.info(

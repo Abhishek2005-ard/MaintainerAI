@@ -5,7 +5,7 @@ import { TRIAGE_SYSTEM_PROMPT } from '../prompts/triagePrompts.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// ── Fallback ──────────────────────────────────────────────────────────────────
+// Fallback 
 // Rule-based analysis when no LLM is available.
 
 function fallbackAnalysis(title, body) {

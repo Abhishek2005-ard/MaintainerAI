@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, BarChart3, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, ListTodo, BarChart3, Settings, LogOut, Home } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
 import { repos as reposApi } from '../services/api';
@@ -108,6 +108,17 @@ export default function DashboardLayout() {
             Sign out
           </button>
         </div>
+        {/* Back to Home */}
+          <div className="px-3 pb-2">
+            <Link
+              id="nav-back-home"
+              to="/"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-neutral-500 hover:bg-white/5 hover:text-neutral-300 transition-all duration-150 border border-white/5 hover:border-white/10"
+            >
+              <Home size={17} />
+              Back to Home
+            </Link>
+          </div>
       </aside>
 
       {/* Main Content */}

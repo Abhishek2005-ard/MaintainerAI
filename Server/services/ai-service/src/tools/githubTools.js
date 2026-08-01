@@ -16,7 +16,7 @@ export const fetchRepoContext = async (owner, repo) => {
 
 export const fetchRepoIssues = async (owner, repo) => {
   try {
-    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues?state=open`);
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues?state=open`);
     if (!res.ok) return [];
     const data = await res.json();
     return (data.issues || []).map((i) => ({
@@ -33,9 +33,22 @@ export const fetchRepoIssues = async (owner, repo) => {
 
 export const markIssueAsDuplicate = async (owner, repo, number, duplicateOf) => {
   try {
-    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}/comments`, {
+    const comment = [
+      '## 🤖 MaintainerAI — Duplicate Detected',
+      '',
+      `This issue appears to be a **duplicate** of **#${duplicateOf}**.`,
+      '',
+      '**What this means:**',
+      `- The issue tracker already has a very similar report at #${duplicateOf}`,
+      '- This issue will be closed to keep the tracker clean',
+      `- Please 👍 react to #${duplicateOf} to show your interest and add any new details there`,
+      '',
+      '> _Detected automatically by [MaintainerAI](https://github.com/apps/maintainerai) using semantic similarity analysis._',
+    ].join('\n');
+
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ body: `This issue appears to be a duplicate of #${duplicateOf}. Please check that issue for updates.` }),
+      body: JSON.stringify({ body: comment }),
     });
     return res.ok;
   } catch {
@@ -45,7 +58,7 @@ export const markIssueAsDuplicate = async (owner, repo, number, duplicateOf) => 
 
 export const addLabelsToIssue = async (owner, repo, number, labels) => {
   try {
-    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}`, {
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}`, {
       method: 'PATCH',
       body: JSON.stringify({ labels }),
     });
@@ -55,9 +68,42 @@ export const addLabelsToIssue = async (owner, repo, number, labels) => {
   }
 };
 
+export const postTriageComment = async (owner, repo, number, analysis, labels, priority) => {
+  try {
+    const priorityEmoji = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[priority] ?? '⚪';
+    const burnoutNote = analysis?.burnoutRisk
+      ? '\n\n> ⚠️ **Burnout risk detected** — the tone of this issue may indicate frustration. Maintainers please be extra empathetic in your response.'
+      : '';
+
+    const comment = [
+      '## 🤖 MaintainerAI — Issue Triaged',
+      '',
+      `| Field | Value |`,
+      `|-------|-------|`,
+      `| **Category** | ${analysis?.category ?? 'other'} |`,
+      `| **Priority** | ${priorityEmoji} ${priority} |`,
+      `| **Labels applied** | ${labels.length > 0 ? labels.map(l => `\`${l}\``).join(', ') : '_none_'} |`,
+      `| **Duplicate** | No |`,
+      '',
+      analysis?.reasoning ? `**AI Reasoning:** ${analysis.reasoning}` : '',
+      burnoutNote,
+      '',
+      '> _Triaged automatically by [MaintainerAI](https://github.com/apps/maintainerai)._',
+    ].filter(Boolean).join('\n');
+
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body: comment }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
 export const postCommentToIssue = async (owner, repo, number, body) => {
   try {
-    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/repos/${owner}/${repo}/issues/${number}/comments`, {
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {
       method: 'POST',
       body: JSON.stringify({ body }),
     });
