@@ -12,22 +12,26 @@ export const handleInstallationEvent = async (payload) => {
 
   logger.info(`Installation event: ${action} (id=${inst.id})`);
 
-  if (action === 'created' || action === 'new_permissions_accepted') {
-    await InstallationModel.findOneAndUpdate(
-      { installationId: inst.id },
-      { accountName: inst.account.login, accountId: inst.account.id, accountType: inst.account.type, avatarUrl: inst.account.avatar_url, permissions: inst.permissions, status: 'active' },
-      { upsert: true, new: true }
-    );
-    for (const repo of payload.repositories || []) {
-      await saveRepository(inst.id, repo, inst.account.login);
+  try {
+    if (action === 'created' || action === 'new_permissions_accepted') {
+      await InstallationModel.findOneAndUpdate(
+        { installationId: inst.id },
+        { accountName: inst.account.login, accountId: inst.account.id, accountType: inst.account.type, avatarUrl: inst.account.avatar_url, permissions: inst.permissions, status: 'active' },
+        { upsert: true, new: true }
+      );
+      for (const repo of payload.repositories || []) {
+        await saveRepository(inst.id, repo, inst.account.login);
+      }
+    } else if (action === 'deleted') {
+      await InstallationModel.deleteOne({ installationId: inst.id });
+      await RepositoryModel.deleteMany({ installationId: inst.id });
+    } else if (action === 'suspend') {
+      await InstallationModel.findOneAndUpdate({ installationId: inst.id }, { status: 'suspended' });
+    } else if (action === 'unsuspend') {
+      await InstallationModel.findOneAndUpdate({ installationId: inst.id }, { status: 'active' });
     }
-  } else if (action === 'deleted') {
-    await InstallationModel.deleteOne({ installationId: inst.id });
-    await RepositoryModel.deleteMany({ installationId: inst.id });
-  } else if (action === 'suspend') {
-    await InstallationModel.findOneAndUpdate({ installationId: inst.id }, { status: 'suspended' });
-  } else if (action === 'unsuspend') {
-    await InstallationModel.findOneAndUpdate({ installationId: inst.id }, { status: 'active' });
+  } catch (err) {
+    logger.error(`Error saving installation event to MongoDB: ${err.message}`);
   }
 };
 
@@ -35,14 +39,18 @@ export const handleInstallationReposEvent = async (payload) => {
   const instId = payload.installation.id;
   const owner  = payload.installation.account.login;
 
-  if (payload.action === 'added') {
-    for (const repo of payload.repositories_added || []) {
-      await saveRepository(instId, repo, owner);
+  try {
+    if (payload.action === 'added') {
+      for (const repo of payload.repositories_added || []) {
+        await saveRepository(instId, repo, owner);
+      }
+    } else if (payload.action === 'removed') {
+      for (const repo of payload.repositories_removed || []) {
+        await RepositoryModel.deleteOne({ repoId: repo.id });
+      }
     }
-  } else if (payload.action === 'removed') {
-    for (const repo of payload.repositories_removed || []) {
-      await RepositoryModel.deleteOne({ repoId: repo.id });
-    }
+  } catch (err) {
+    logger.error(`Error updating installation repositories in MongoDB: ${err.message}`);
   }
 };
 

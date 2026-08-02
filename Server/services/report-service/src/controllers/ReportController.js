@@ -73,18 +73,25 @@ export const getReports = async (req, res, next) => {
   }
 };
 
-/** GET /reports/dashboard — Aggregate stats across all stored reports. */
+/** GET /reports/dashboard — Aggregate stats across stored reports (supports optional owner & repoName filters). */
 export const getDashboardStats = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
+    const { owner, repoName } = req.query;
+    const filter = {};
+    if (owner)    filter['issue.owner']    = owner;
+    if (repoName) filter['issue.repoName'] = repoName;
+
     const [total, duplicates, burnoutRisk, categories, priorities] = await Promise.all([
-      ReportModel.countDocuments(),
-      ReportModel.countDocuments({ isDuplicate: true }),
-      ReportModel.countDocuments({ 'analysis.burnoutRisk': true }),
+      ReportModel.countDocuments(filter),
+      ReportModel.countDocuments({ ...filter, isDuplicate: true }),
+      ReportModel.countDocuments({ ...filter, 'analysis.burnoutRisk': true }),
       ReportModel.aggregate([
+        { $match: filter },
         { $group: { _id: '$analysis.category', count: { $sum: 1 } } },
       ]),
       ReportModel.aggregate([
+        { $match: filter },
         { $group: { _id: '$predictedPriority', count: { $sum: 1 } } },
       ]),
     ]);

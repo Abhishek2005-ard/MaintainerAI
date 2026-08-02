@@ -12,6 +12,9 @@ export function isConnected() {
 
 // Connect to MongoDB Atlas — configured via REPORT_MONGO_URI in .env
 export async function connectDB() {
+  // Disable Mongoose operation buffering so queries fail fast with 503 if DB is unreachable
+  mongoose.set('bufferCommands', false);
+
   try {
     await mongoose.connect(env.MONGO_URI, {
       serverSelectionTimeoutMS: 10000,
@@ -30,10 +33,12 @@ export async function connectDB() {
       logger.info('MongoDB reconnected.');
     });
   } catch (err) {
+    _connected = false;
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`MongoDB connection failed: ${message}`);
     logger.error('Check that REPORT_MONGO_URI in .env is correct and your Atlas IP whitelist includes your IP.');
-    // Don't crash — service will proceed but DB operations will fail with a clear 503
+    // Schedule background retry after 5 seconds so temporary startup issues resolve automatically
+    setTimeout(connectDB, 5000);
   }
 }
 

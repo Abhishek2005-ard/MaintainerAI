@@ -13,9 +13,6 @@ import issueRoutes from './routes/issueRoutes.js';
 
 const app = express();
 
-// Initialize Mongoose DB Connection
-connectDB();
-
 // Global Middleware
 app.use(cors());
 
@@ -36,7 +33,7 @@ app.use('/repos', repoRoutes);
 app.use('/issues', issueRoutes);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     service: 'MaintainerAI GitHub Microservice',
     status: 'active',
@@ -47,7 +44,21 @@ app.get('/health', (req, res) => {
 // Global Error Handler
 app.use(errorHandler);
 
-// Listen
-app.listen(env.PORT, () => {
-  logger.info(`🚀 GitHub Service running on port ${env.PORT}`);
+// Prevent unhandled errors from crashing the GitHub Service process
+process.on('uncaughtException', (err) => {
+  logger.error(`[Process] Uncaught Exception in GitHub Service: ${err.message}`);
 });
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  logger.error(`[Process] Unhandled Rejection in GitHub Service: ${msg}`);
+});
+
+async function start() {
+  await connectDB();
+  app.listen(env.PORT, () => {
+    logger.info(`🚀 GitHub Service running on port ${env.PORT}`);
+  });
+}
+
+start();

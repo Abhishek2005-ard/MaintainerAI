@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-const ALLOWED_ROLES = new Set(['admin', 'system']);
+const ALLOWED_ROLES = new Set(['admin', 'system', 'maintainer', 'user']);
 
 // Verifies the Bearer JWT and ensures the caller has an allowed role.
 export function authMiddleware(req, res, next) {

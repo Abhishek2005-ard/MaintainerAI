@@ -26,7 +26,16 @@ app.get('/health', (_req, res) => {
 // ── Error handling (must come last) ──────────────────────────────────────────
 app.use(errorHandler);
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+// Prevent unhandled errors from crashing the Report Service process
+process.on('uncaughtException', (err) => {
+  logger.error(`[Process] Uncaught Exception in Report Service: ${err.message}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  logger.error(`[Process] Unhandled Rejection in Report Service: ${msg}`);
+});
+
 async function start() {
   await connectDB();
   app.listen(env.PORT, () =>

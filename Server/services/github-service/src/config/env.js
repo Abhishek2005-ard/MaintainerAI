@@ -18,7 +18,7 @@ for (const envPath of envPaths) {
 export const env = {
   NODE_ENV:             process.env.NODE_ENV               || 'development',
   PORT:                 parseInt(process.env.GITHUB_SERVICE_PORT || '8003', 10),
-  MONGO_URI:            process.env.GITHUB_MONGO_URI        || 'mongodb://localhost:27017/maintainer_ai_github',
+  MONGO_URI:            process.env.GITHUB_MONGO_URI        || 'mongodb://127.0.0.1:27017/maintainer_ai_github',
   JWT_SECRET:           process.env.JWT_SECRET              || 'super_secret_jwt_key_2026',
   CLIENT_URL:           process.env.CLIENT_URL              || 'http://127.0.0.1:5173',
   AGENT_SERVICE_URL:    process.env.AI_SERVICE_URL          || 'http://127.0.0.1:8002',

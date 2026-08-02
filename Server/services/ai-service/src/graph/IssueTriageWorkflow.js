@@ -77,9 +77,11 @@ const updateGitHub = async (s) => {
   const logs = [];
 
   if (s.isDuplicate) {
-    // markDuplicate already posted the duplicate comment — just apply the label
-    const ok = await GitHub.applyLabels(owner, repoName, number, ['duplicate']);
-    logs.push(`Applied [duplicate] label: ${ok ? 'ok' : 'failed'}`);
+    // markDuplicate posted duplicate comment — now apply 'duplicate' label & close issue on GitHub
+    const ok1 = await GitHub.applyLabels(owner, repoName, number, ['duplicate']);
+    logs.push(`Applied [duplicate] label: ${ok1 ? 'ok' : 'failed'}`);
+    const ok2 = await GitHub.closeIssue(owner, repoName, number);
+    logs.push(`Closed duplicate issue on GitHub: ${ok2 ? 'ok' : 'failed'}`);
   } else {
     // Apply predicted labels
     if (s.predictedLabels && s.predictedLabels.length > 0) {

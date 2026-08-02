@@ -16,7 +16,8 @@ export const authMiddleware = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
 
-    if (decoded.role !== 'admin' && decoded.role !== 'system') {
+    const ALLOWED_ROLES = new Set(['admin', 'system', 'maintainer', 'user']);
+    if (!ALLOWED_ROLES.has(decoded.role)) {
       logger.warn(`[Auth] Request rejected: insufficient role "${decoded.role}".`);
       return res.status(403).json({ error: 'Forbidden. Insufficient permissions.' });
     }

@@ -125,11 +125,13 @@ export const issues = {
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export const reports = {
-  /**
-   * GET /api/reports/reports/dashboard
-   * Returns { stats: { totalIssues, duplicates, burnoutRisk, categoryBreakdown, priorityBreakdown } }
-   */
-  getDashboardStats: () => apiFetch('/reports/reports/dashboard'),
+  getDashboardStats: (owner, repoName) => {
+    const params = new URLSearchParams();
+    if (owner) params.set('owner', owner);
+    if (repoName) params.set('repoName', repoName);
+    const qs = params.toString();
+    return apiFetch(`/reports/reports/dashboard${qs ? `?${qs}` : ''}`);
+  },
 
   /**
    * GET /api/reports/reports?owner=&repoName=&isDuplicate=&number=

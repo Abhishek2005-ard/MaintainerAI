@@ -30,14 +30,51 @@ app.use(morgan('dev'));   // request logging
 
 // ── Proxy Routes ─────────────────────────────────────────────────────────────
 
+// Helper to log gateway errors
+function logGatewayError(req, err) {
+  const logMsg = `[${new Date().toISOString()}] GATEWAY PROXY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
+  try {
+    fs.appendFileSync(path.resolve(process.cwd(), '../error.log'), logMsg);
+  } catch (fsErr) {
+    console.error('Failed to write gateway error to log file:', fsErr.message);
+  }
+}
+
 // AI Service  —  issue triage, LangGraph workflow
-app.use('/api/triage', proxy(AI_SERVICE_URL));
+app.use('/api/triage', proxy(AI_SERVICE_URL, {
+  timeout: 120000,
+  proxyErrorHandler: (err, res, next) => {
+    logGatewayError(res.req || {}, err);
+    res.status(503).json({ error: `AI Service unavailable: ${err.message}` });
+  }
+}));
 
 // GitHub Service  —  repo management, issue & label operations
-app.use('/api/github', proxy(GITHUB_SERVICE_URL));
+app.use('/api/github', proxy(GITHUB_SERVICE_URL, {
+  timeout: 120000,
+  proxyErrorHandler: (err, res, next) => {
+    logGatewayError(res.req || {}, err);
+    res.status(503).json({ error: `GitHub Service unavailable: ${err.message}` });
+  }
+}));
 
 // Report Service  —  triage reports, dashboard stats, weekly digest
-app.use('/api/reports', proxy(REPORT_SERVICE_URL));
+app.use('/api/reports', proxy(REPORT_SERVICE_URL, {
+  timeout: 120000,
+  proxyReqPathResolver: (req) => {
+    // Normalizes paths: /api/reports/dashboard -> /reports/dashboard
+    // /api/reports/reports/dashboard -> /reports/dashboard
+    const rawPath = req.url;
+    if (rawPath.startsWith('/reports')) {
+      return rawPath;
+    }
+    return '/reports' + (rawPath === '/' ? '' : rawPath);
+  },
+  proxyErrorHandler: (err, res, next) => {
+    logGatewayError(res.req || {}, err);
+    res.status(503).json({ error: `Report Service unavailable: ${err.message}` });
+  }
+}));
 
 // Global Error Handler for Gateway
 app.use((err, req, res, next) => {
@@ -62,6 +99,18 @@ app.get('/health', (_req, res) => {
     },
     timestamp: new Date().toISOString(),
   });
+});
+
+// Process Safety — Prevent unexpected proxy/socket errors from crashing Gateway process
+process.on('uncaughtException', (err) => {
+  console.error(`[${new Date().toISOString()}] UNCAUGHT EXCEPTION in Gateway:`, err.message);
+  logGatewayError({ method: 'PROCESS', originalUrl: 'uncaughtException' }, err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error(`[${new Date().toISOString()}] UNHANDLED REJECTION in Gateway:`, err.message);
+  logGatewayError({ method: 'PROCESS', originalUrl: 'unhandledRejection' }, err);
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

@@ -12,6 +12,9 @@ export function isConnected() {
 
 export const connectDB = async () => {
   mongoose.set('strictQuery', true);
+  // Disable Mongoose operation buffering so queries fail fast with 503 if DB is unreachable
+  mongoose.set('bufferCommands', false);
+
   try {
     await mongoose.connect(env.MONGO_URI, {
       serverSelectionTimeoutMS: 10000,
@@ -29,8 +32,10 @@ export const connectDB = async () => {
       logger.info('MongoDB reconnected (GitHub Service).');
     });
   } catch (error) {
+    _connected = false;
     logger.error(`MongoDB connection failed: ${error.message}`);
     logger.error('Check that GITHUB_MONGO_URI in .env is correct and your Atlas IP whitelist includes your IP.');
-    // Don't crash — service will proceed but DB operations will fail with a clear 503
+    // Schedule background retry after 5 seconds so temporary startup issues resolve automatically
+    setTimeout(connectDB, 5000);
   }
 };

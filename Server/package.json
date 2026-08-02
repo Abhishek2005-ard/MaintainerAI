@@ -1,0 +1,10 @@
+{
+  "name": "maintainerai-server-manager",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Master script to start all MaintainerAI microservices & Gateway",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js"
+  }
+}

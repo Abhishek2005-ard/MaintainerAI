@@ -16,7 +16,7 @@ export const fetchRepoContext = async (owner, repo) => {
 
 export const fetchRepoIssues = async (owner, repo) => {
   try {
-    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues?state=open`);
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues?state=all`);
     if (!res.ok) return [];
     const data = await res.json();
     return (data.issues || []).map((i) => ({
@@ -106,6 +106,18 @@ export const postCommentToIssue = async (owner, repo, number, body) => {
     const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {
       method: 'POST',
       body: JSON.stringify({ body }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+export const closeIssueOnGitHub = async (owner, repo, number) => {
+  try {
+    const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ state: 'closed' }),
     });
     return res.ok;
   } catch {

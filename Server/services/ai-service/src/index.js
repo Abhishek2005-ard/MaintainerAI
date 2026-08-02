@@ -17,6 +17,16 @@ app.use('/', triageRoutes);
 // Must be registered after all routes
 app.use(errorHandler);
 
+// Prevent unhandled errors from crashing the AI Service process
+process.on('uncaughtException', (err) => {
+  logger.error(`[Process] Uncaught Exception in AI Service: ${err.message}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  logger.error(`[Process] Unhandled Rejection in AI Service: ${msg}`);
+});
+
 app.listen(env.PORT, () => {
   logger.info(`MaintainerAI Agent Service running on port ${env.PORT} [${env.NODE_ENV}]`);
 });

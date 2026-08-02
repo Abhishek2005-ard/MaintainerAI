@@ -5,8 +5,8 @@ import { LABEL_PREDICTION_PROMPT } from '../prompts/triagePrompts.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Derives simple labels from the analysis without calling an LLM.
-function fallbackLabels(analysis) {
+// Derives smart labels from the analysis
+function smartLabels(analysis) {
   const labels = [
     analysis.category,
     `priority: ${analysis.priority}`,
@@ -15,63 +15,68 @@ function fallbackLabels(analysis) {
   return { labels, priority: analysis.priority };
 }
 
-// Strips markdown code fences the LLM sometimes wraps around JSON.
 function stripMarkdown(raw) {
   return raw.replace(/```json/g, '').replace(/```/g, '').trim();
 }
 
-// Asks the LLM to suggest GitHub labels based on the issue analysis.
+async function invokeWithTimeout(llm, messages, timeoutMs = 15000) {
+  return await Promise.race([
+    llm.invoke(messages),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('LLM call timed out')), timeoutMs))
+  ]);
+}
+
+// Asks LLMs (Gemini -> OpenAI -> Smart Fallback) to predict GitHub labels based on issue analysis
 export async function predictLabels(analysis) {
-  let llm;
-  
-  // We instantiate the AI model directly in the agent so there is no separate state
-  if (env.GEMINI_API_KEY) {
-    llm = new ChatGoogleGenerativeAI({
-      apiKey: env.GEMINI_API_KEY,
-      model: 'gemini-2.0-flash',
-      maxOutputTokens: 1024,
-    });
-  } else if (env.OPENAI_API_KEY) {
-    llm = new ChatOpenAI({
-      apiKey: env.OPENAI_API_KEY,
-      modelName: 'gpt-4o-mini',
-      temperature: 0.1,
-    });
+  const input = JSON.stringify({
+    category:    analysis.category,
+    priority:    analysis.priority,
+    burnoutRisk: analysis.burnoutRisk,
+  });
+  const messages = [new SystemMessage(LABEL_PREDICTION_PROMPT), new HumanMessage(`Issue analysis:\n${input}`)];
+
+  // 1. Try Gemini
+  if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 5) {
+    try {
+      logger.info('LabelAgent: Calling Gemini API for labels...');
+      const gemini = new ChatGoogleGenerativeAI({
+        apiKey: env.GEMINI_API_KEY,
+        model: 'gemini-2.0-flash',
+        maxOutputTokens: 1024,
+      });
+      const response = await invokeWithTimeout(gemini, messages);
+      const raw = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const parsed = JSON.parse(stripMarkdown(raw));
+      return {
+        labels:   parsed.labels   ?? smartLabels(analysis).labels,
+        priority: parsed.priority ?? analysis.priority,
+      };
+    } catch (err) {
+      logger.warn(`LabelAgent: Gemini failed (${err.message}) — attempting OpenAI...`);
+    }
   }
 
-  if (!llm) {
-    logger.warn('LabelAgent: No API key configured — using fallback labels');
-    return fallbackLabels(analysis);
+  // 2. Try OpenAI
+  if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 5) {
+    try {
+      logger.info('LabelAgent: Calling OpenAI API for labels...');
+      const openai = new ChatOpenAI({
+        apiKey: env.OPENAI_API_KEY,
+        modelName: 'gpt-4o-mini',
+        temperature: 0.1,
+      });
+      const response = await invokeWithTimeout(openai, messages);
+      const raw = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const parsed = JSON.parse(stripMarkdown(raw));
+      return {
+        labels:   parsed.labels   ?? smartLabels(analysis).labels,
+        priority: parsed.priority ?? analysis.priority,
+      };
+    } catch (err) {
+      logger.warn(`LabelAgent: OpenAI failed (${err.message}) — using smart labels.`);
+    }
   }
 
-  try {
-    const input = JSON.stringify({
-      category:    analysis.category,
-      priority:    analysis.priority,
-      burnoutRisk: analysis.burnoutRisk,
-    });
-
-    // MAKE SURE IT IS OBVIOUS WHERE WE USE THE AI API
-    logger.info('LabelAgent: Calling AI API to predict labels based on issue analysis...');
-    const response = await llm.invoke([
-      new SystemMessage(LABEL_PREDICTION_PROMPT),
-      new HumanMessage(`Issue analysis:\n${input}`),
-    ]);
-    logger.info('LabelAgent: AI API responded successfully with labels.');
-
-    const raw = typeof response.content === 'string'
-      ? response.content
-      : JSON.stringify(response.content);
-
-    const parsed = JSON.parse(stripMarkdown(raw));
-
-    return {
-      labels:   parsed.labels   ?? fallbackLabels(analysis).labels,
-      priority: parsed.priority ?? analysis.priority,
-    };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.warn(`LabelAgent: LLM failed (${msg}) — using fallback labels`);
-    return fallbackLabels(analysis);
-  }
+  // 3. Fallback Labels
+  return smartLabels(analysis);
 }

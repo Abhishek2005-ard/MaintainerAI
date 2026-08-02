@@ -27,3 +27,6 @@ export function postTriageComment(owner, repo, number, analysis, labels, priorit
   return github.postTriageComment(owner, repo, number, analysis, labels, priority);
 }
 
+export function closeIssue(owner, repo, number) {
+  return github.closeIssueOnGitHub(owner, repo, number);
+}
