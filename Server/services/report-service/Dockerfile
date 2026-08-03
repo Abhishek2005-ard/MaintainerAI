@@ -1,29 +1,20 @@
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copy package configuration files
 COPY package*.json ./
+COPY services/report-service/package*.json ./services/report-service/
 
-# Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --only=production && cd services/report-service && npm ci --only=production
 
-# Final lightweight stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS runner
 WORKDIR /app
-
-# Copy dependencies and source files
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
-COPY src/ ./src/
-
-# Set environment
 ENV NODE_ENV=production
-ENV PORT=8004
 
-# Expose port
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/report-service/node_modules ./services/report-service/node_modules
+COPY services/report-service ./services/report-service
+COPY services/shared ./services/shared
+
 EXPOSE 8004
 
-# Start command
-CMD ["npm", "start"]
+CMD ["node", "services/report-service/src/index.js"]

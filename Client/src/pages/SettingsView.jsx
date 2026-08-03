@@ -230,9 +230,9 @@ export default function SettingsView() {
   const handleInstall = async () => {
     try {
       const { url } = await authApi.getInstallUrl();
-      window.location.href = url;
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      window.location.href = 'https://github.com/apps/maintainerai-abhishek-dhatrak/installations/new';
+      window.open('https://github.com/apps/maintainerai-abhishek-dhatrak/installations/new', '_blank', 'noopener,noreferrer');
     }
   };
 

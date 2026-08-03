@@ -1,29 +1,20 @@
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copy package configuration files
 COPY package*.json ./
+COPY gateway/package*.json ./gateway/
 
-# Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --only=production && cd gateway && npm ci --only=production
 
-# Final lightweight stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS runner
 WORKDIR /app
-
-# Copy dependencies and source files
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
-COPY index.js ./
-
-# Set environment
 ENV NODE_ENV=production
-ENV PORT=8000
 
-# Expose port
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/gateway/node_modules ./gateway/node_modules
+COPY gateway ./gateway
+COPY services/shared ./services/shared
+
 EXPOSE 8000
 
-# Start command
-CMD ["npm", "start"]
+CMD ["node", "gateway/index.js"]

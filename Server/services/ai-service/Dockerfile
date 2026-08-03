@@ -1,29 +1,20 @@
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copy package configuration files
 COPY package*.json ./
+COPY services/ai-service/package*.json ./services/ai-service/
 
-# Install production dependencies only
-RUN npm ci --only=production
+RUN npm install --legacy-peer-deps --only=production && cd services/ai-service && npm install --legacy-peer-deps --only=production
 
-# Final lightweight stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS runner
 WORKDIR /app
-
-# Copy dependencies and source files
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
-COPY src/ ./src/
-
-# Set environment
 ENV NODE_ENV=production
-ENV PORT=8002
 
-# Expose port
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/ai-service/node_modules ./services/ai-service/node_modules
+COPY services/ai-service ./services/ai-service
+COPY services/shared ./services/shared
+
 EXPOSE 8002
 
-# Start command
-CMD ["npm", "start"]
+CMD ["node", "services/ai-service/src/index.js"]

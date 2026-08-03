@@ -3,9 +3,9 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Issues with vector similarity above this score are considered duplicates.
-const VECTOR_THRESHOLD = 0.78;
-const TEXT_FALLBACK_THRESHOLD = 0.28;
+// Issues with vector similarity or text similarity above these thresholds are considered duplicates.
+const VECTOR_THRESHOLD = 0.75;
+const TEXT_FALLBACK_THRESHOLD = 0.25;
 
 const STOP_WORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been',
@@ -26,7 +26,7 @@ function getStemTokens(text) {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
-// Compute fuzzy phrase similarity
+// Compute fuzzy phrase and token similarity
 function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const titleTokensA = getStemTokens(titleA);
   const titleTokensB = getStemTokens(titleB);
@@ -44,12 +44,12 @@ function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const titleMin = Math.min(setA.size, setB.size);
   const titleOverlap = titleMin > 0 ? titleCommon / titleMin : 0;
   const titleJaccard = (setA.size + setB.size - titleCommon) > 0 ? titleCommon / (setA.size + setB.size - titleCommon) : 0;
-  const titleScore = (titleOverlap * 0.75) + (titleJaccard * 0.25);
+  const titleScore = (titleOverlap * 0.70) + (titleJaccard * 0.30);
 
   // Substring or phrase inclusion bonus
   const normA = (titleA || '').toLowerCase().trim();
   const normB = (titleB || '').toLowerCase().trim();
-  const phraseBonus = (normA.includes(normB) || normB.includes(normA)) && normA.length > 5 ? 0.35 : 0;
+  const phraseBonus = (normA.includes(normB) || normB.includes(normA)) && normA.length > 3 ? 0.40 : 0;
 
   // Body tokens
   const bodyTokensA = getStemTokens(bodyA);
@@ -65,8 +65,8 @@ function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const bodyMin = Math.min(bodySetA.size, bodySetB.size);
   const bodyOverlap = bodyMin > 0 ? bodyCommon / bodyMin : 0;
 
-  // Final score weighted heavily towards title match & phrase bonus
-  return Math.min(1.0, (titleScore * 0.70) + (bodyOverlap * 0.20) + phraseBonus);
+  // Final score weighted towards title overlap, body overlap, and phrase inclusion bonus
+  return Math.min(1.0, (titleScore * 0.60) + (bodyOverlap * 0.20) + phraseBonus);
 }
 
 // Convert a text string into a numeric vector using AI API with a timeout
@@ -103,7 +103,7 @@ async function generateTextEmbedding(text) {
 
 // Cosine similarity between two vectors
 function cosineSimilarity(a, b) {
-  if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
+  if (!a || !b || a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
   const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
   const magA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
   const magB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
@@ -113,39 +113,69 @@ function cosineSimilarity(a, b) {
 
 // Detects duplicates against all candidate issues in the repository
 export async function detectDuplicate(issue, candidates) {
+  logger.info(`DuplicateAgent: Checking issue #${issue.number} ("${issue.title}") against ${candidates?.length ?? 0} candidate issues.`);
+
+  if (!candidates || candidates.length === 0) {
+    return {
+      isDuplicate: false,
+      duplicateOfNumber: null,
+      similarityScore: 0,
+      issueEmbedding: [],
+    };
+  }
+
   const currentText = `${issue.title}\n\n${issue.body}`;
   const issueEmbedding = await generateTextEmbedding(currentText);
+  const useVector = issueEmbedding && issueEmbedding.length > 0;
 
   let bestScore = 0;
-  let bestNumber = null;
-  const useVector = issueEmbedding.length > 0;
+  let bestCandidate = null;
 
   for (const candidate of candidates) {
+    // Skip comparing the issue against itself
+    if (candidate.number === issue.number) continue;
+
     let score = 0;
+    let mode = 'nlp';
 
     if (useVector) {
       const candidateEmbedding = await generateTextEmbedding(`${candidate.title}\n\n${candidate.body}`);
-      score = cosineSimilarity(issueEmbedding, candidateEmbedding);
+      if (candidateEmbedding && candidateEmbedding.length > 0) {
+        score = cosineSimilarity(issueEmbedding, candidateEmbedding);
+        mode = 'vector';
+      } else {
+        score = computeTextSimilarity(issue.title, issue.body, candidate.title, candidate.body);
+        mode = 'nlp-fallback';
+      }
     } else {
       score = computeTextSimilarity(issue.title, issue.body, candidate.title, candidate.body);
+      mode = 'nlp';
     }
+
+    const threshold = mode === 'vector' ? VECTOR_THRESHOLD : TEXT_FALLBACK_THRESHOLD;
+    const isCandidateMatch = score >= threshold;
+
+    logger.info(
+      `[DuplicateAgent] Candidate #${candidate.number} ("${candidate.title.slice(0, 35)}"): score=${score.toFixed(3)} (mode=${mode}, threshold=${threshold}) match=${isCandidateMatch}`
+    );
 
     if (score > bestScore) {
       bestScore = score;
-      bestNumber = candidate.number;
+      bestCandidate = candidate;
     }
   }
 
-  const threshold = useVector ? VECTOR_THRESHOLD : TEXT_FALLBACK_THRESHOLD;
-  const isDuplicate = bestScore >= threshold && candidates.length > 0;
+  const effectiveThreshold = (useVector && bestCandidate && bestScore >= VECTOR_THRESHOLD) ? VECTOR_THRESHOLD : TEXT_FALLBACK_THRESHOLD;
+  const isDuplicate = bestCandidate !== null && bestScore >= effectiveThreshold;
+  const duplicateOfNumber = isDuplicate ? bestCandidate.number : null;
 
   logger.info(
-    `DuplicateAgent: candidatesCount=${candidates.length} best match=#${bestNumber ?? 'none'} score=${bestScore.toFixed(3)} (mode=${useVector ? 'vector' : 'nlp-fallback'}) isDuplicate=${isDuplicate}`,
+    `DuplicateAgent Final Result: candidatesCount=${candidates.length} bestMatch=#${duplicateOfNumber ?? 'none'} score=${bestScore.toFixed(3)} isDuplicate=${isDuplicate}`
   );
 
   return {
     isDuplicate,
-    duplicateOfNumber: isDuplicate ? bestNumber : null,
+    duplicateOfNumber,
     similarityScore: bestScore,
     issueEmbedding,
   };

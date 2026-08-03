@@ -31,19 +31,15 @@ export const fetchRepoIssues = async (owner, repo) => {
   }
 };
 
+// Post a simple, human-like duplicate notification comment
 export const markIssueAsDuplicate = async (owner, repo, number, duplicateOf) => {
   try {
     const comment = [
-      '## 🤖 MaintainerAI — Duplicate Detected',
-      '',
-      `This issue appears to be a **duplicate** of **#${duplicateOf}**.`,
-      '',
-      '**What this means:**',
-      `- The issue tracker already has a very similar report at #${duplicateOf}`,
-      '- This issue will be closed to keep the tracker clean',
-      `- Please 👍 react to #${duplicateOf} to show your interest and add any new details there`,
-      '',
-      '> _Detected automatically by [MaintainerAI](https://github.com/apps/maintainerai) using semantic similarity analysis._',
+      `Thanks for opening this issue!`,
+      ``,
+      `This appears to be a duplicate of **#${duplicateOf}**.`,
+      ``,
+      `To keep all discussions consolidated in one place, we are closing this issue. Please feel free to add your thoughts and any extra details on **#${duplicateOf}**.`,
     ].join('\n');
 
     const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {
@@ -68,27 +64,22 @@ export const addLabelsToIssue = async (owner, repo, number, labels) => {
   }
 };
 
+// Post a clear, human-like triage confirmation comment
 export const postTriageComment = async (owner, repo, number, analysis, labels, priority) => {
   try {
-    const priorityEmoji = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[priority] ?? '⚪';
-    const burnoutNote = analysis?.burnoutRisk
-      ? '\n\n> ⚠️ **Burnout risk detected** — the tone of this issue may indicate frustration. Maintainers please be extra empathetic in your response.'
-      : '';
+    const priorityLabel = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Low';
 
     const comment = [
-      '## 🤖 MaintainerAI — Issue Triaged',
-      '',
-      `| Field | Value |`,
-      `|-------|-------|`,
-      `| **Category** | ${analysis?.category ?? 'other'} |`,
-      `| **Priority** | ${priorityEmoji} ${priority} |`,
-      `| **Labels applied** | ${labels.length > 0 ? labels.map(l => `\`${l}\``).join(', ') : '_none_'} |`,
-      `| **Duplicate** | No |`,
-      '',
-      analysis?.reasoning ? `**AI Reasoning:** ${analysis.reasoning}` : '',
-      burnoutNote,
-      '',
-      '> _Triaged automatically by [MaintainerAI](https://github.com/apps/maintainerai)._',
+      `Thanks for submitting this issue!`,
+      ``,
+      `**Summary:**`,
+      `- **Category:** ${analysis?.category ? analysis.category.toUpperCase() : 'General'}`,
+      `- **Priority:** ${priorityLabel}`,
+      labels.length > 0 ? `- **Labels:** ${labels.map(l => `\`${l}\``).join(', ')}` : '',
+      ``,
+      analysis?.reasoning ? `**Note:** ${analysis.reasoning}` : '',
+      ``,
+      `We have processed this report and queued it for maintainer review.`,
     ].filter(Boolean).join('\n');
 
     const res = await internalRequest(`${env.GITHUB_SERVICE_URL}/issues/${owner}/${repo}/issues/${number}/comments`, {

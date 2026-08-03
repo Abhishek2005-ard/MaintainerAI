@@ -1,29 +1,20 @@
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copy package configuration files
 COPY package*.json ./
+COPY services/github-service/package*.json ./services/github-service/
 
-# Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --only=production && cd services/github-service && npm ci --only=production
 
-# Final lightweight stage
-FROM node:20-alpine
-
+FROM node:20-alpine AS runner
 WORKDIR /app
-
-# Copy dependencies and source files
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
-COPY src/ ./src/
-
-# Set environment
 ENV NODE_ENV=production
-ENV PORT=8003
 
-# Expose port
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/github-service/node_modules ./services/github-service/node_modules
+COPY services/github-service ./services/github-service
+COPY services/shared ./services/shared
+
 EXPOSE 8003
 
-# Start command
-CMD ["npm", "start"]
+CMD ["node", "services/github-service/src/index.js"]

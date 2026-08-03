@@ -9,12 +9,10 @@ import * as GitHub from '../agents/GitHubAgent.js';
 import { sendReport } from '../agents/ReportAgent.js';
 import { logger } from '../utils/logger.js';
 
-// ── Graph State ───────────────────────────────────────────────────────────────
-// Every node receives this state and returns a partial update.
-
+// Define workflow state schema
 const State = Annotation.Root({
   issue:             Annotation(),
-  triageRules:       Annotation(),  // Optional per-repo rules { customLabels, customPromptHints }
+  triageRules:       Annotation(),
   repoContext:       Annotation(),
   openIssues:        Annotation(),
   issueEmbedding:    Annotation(),
@@ -29,9 +27,7 @@ const State = Annotation.Root({
   reported:          Annotation(),
 });
 
-// ── Nodes ─────────────────────────────────────────────────────────────────────
-// Each node does exactly one thing and delegates to the matching agent.
-
+// Workflow step handlers
 const receiveIssue = async (s) => {
   logger.info(`Issue received: ${s.issue.owner}/${s.issue.repoName}#${s.issue.number} — "${s.issue.title}"`);
   return {};
@@ -61,7 +57,6 @@ const markDuplicate = async (s) => {
 };
 
 const reasonWithLLM = async (s) => {
-  // Pass custom prompt hints from per-repo triage rules if configured.
   const customHints = s.triageRules?.customPromptHints || null;
   const llmAnalysis = await runTriageAgent(s.issue.title, s.issue.body, customHints);
   return { llmAnalysis, burnoutRisk: llmAnalysis.burnoutRisk };
@@ -77,19 +72,16 @@ const updateGitHub = async (s) => {
   const logs = [];
 
   if (s.isDuplicate) {
-    // markDuplicate posted duplicate comment — now apply 'duplicate' label & close issue on GitHub
     const ok1 = await GitHub.applyLabels(owner, repoName, number, ['duplicate']);
     logs.push(`Applied [duplicate] label: ${ok1 ? 'ok' : 'failed'}`);
     const ok2 = await GitHub.closeIssue(owner, repoName, number);
     logs.push(`Closed duplicate issue on GitHub: ${ok2 ? 'ok' : 'failed'}`);
   } else {
-    // Apply predicted labels
     if (s.predictedLabels && s.predictedLabels.length > 0) {
       const ok = await GitHub.applyLabels(owner, repoName, number, s.predictedLabels);
       logs.push(`Applied labels [${s.predictedLabels.join(', ')}]: ${ok ? 'ok' : 'failed'}`);
     }
 
-    // Post rich triage summary comment on GitHub
     const ok = await GitHub.postTriageComment(
       owner, repoName, number,
       s.llmAnalysis,
@@ -98,18 +90,16 @@ const updateGitHub = async (s) => {
     );
     logs.push(`Posted triage summary comment: ${ok ? 'ok' : 'failed'}`);
 
-    // Extra burnout-risk comment if flagged
     if (s.burnoutRisk) {
       const ok2 = await GitHub.postComment(owner, repoName, number,
-        'Thanks for opening this issue!\n\nOur maintainers are volunteers — please be kind and patient. We appreciate it!',
+        'Hi there! Thanks for opening this issue. Our team will review this shortly. We appreciate your patience!',
       );
-      logs.push(`Posted burnout-risk comment: ${ok2 ? 'ok' : 'failed'}`);
+      logs.push(`Posted maintainer greeting: ${ok2 ? 'ok' : 'failed'}`);
     }
   }
 
   return { executionLogs: logs };
 };
-
 
 const saveResults = async (s) => {
   logger.info(
@@ -133,8 +123,7 @@ const sendReportNode = async (s) => {
   return { reported };
 };
 
-// ── Graph ─────────────────────────────────────────────────────────────────────
-
+// Build LangGraph state workflow
 const workflow = new StateGraph(State)
   .addNode('receiveIssue',      receiveIssue)
   .addNode('fetchRepoContext',  fetchRepoContext)
@@ -152,22 +141,20 @@ const workflow = new StateGraph(State)
   .addEdge('fetchRepoContext',    'fetchOpenIssues')
   .addEdge('fetchOpenIssues',     'runDuplicateCheck')
 
-  // Branch: duplicate → markDuplicate, not duplicate → reasonWithLLM
   .addConditionalEdges('runDuplicateCheck', (s) => s.isDuplicate ? 'markDuplicate' : 'reasonWithLLM', {
     markDuplicate: 'markDuplicate',
     reasonWithLLM: 'reasonWithLLM',
   })
 
-  .addEdge('markDuplicate',      'updateGitHub')      // duplicate path
-  .addEdge('reasonWithLLM',      'runLabelPrediction') // non-duplicate path
+  .addEdge('markDuplicate',      'updateGitHub')
+  .addEdge('reasonWithLLM',      'runLabelPrediction')
   .addEdge('runLabelPrediction', 'updateGitHub')
 
   .addEdge('updateGitHub',  'saveResults')
   .addEdge('saveResults',   'sendReport')
   .addEdge('sendReport',    END);
 
-// ── Compile with MongoDB checkpointer (falls back to in-memory) ───────────────
-
+// Compile graph with Mongo or memory state checkpointer
 let _compiledWorkflow = null;
 
 async function getCompiledWorkflow() {
@@ -181,8 +168,7 @@ async function getCompiledWorkflow() {
   return _compiledWorkflow;
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
-
+// Execute the triage workflow
 export async function runWorkflow(issue, triageRules = null) {
   const compiled = await getCompiledWorkflow();
   const config = { configurable: { thread_id: `triage-${issue.issueId}` } };

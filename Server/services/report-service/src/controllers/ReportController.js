@@ -1,6 +1,7 @@
 import { ReportModel } from '../models/ReportModel.js';
 import { logger } from '../utils/logger.js';
 import { isConnected } from '../config/db.js';
+import { getCache, setCache, clearPattern } from '../../../shared/redisClient.js';
 
 // ─── DB guard ─────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ export const createTriageReport = async (req, res, next) => {
       `Report saved: issue #${report.issue?.number} (${report.issue?.owner}/${report.issue?.repoName})`,
     );
 
+    // Invalidate cached reports and dashboard stats
+    await clearPattern('reports:*');
+
     res.status(201).json({ success: true, id: report._id });
   } catch (err) {
     next(err);
@@ -59,6 +63,12 @@ export const getReports = async (req, res, next) => {
   try {
     const { owner, repoName, isDuplicate, number } = req.query;
 
+    const cacheKey = `reports:list:${owner || 'all'}:${repoName || 'all'}:${isDuplicate || 'all'}:${number || 'all'}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, count: cached.length, reports: cached });
+    }
+
     const filter = {};
     if (owner)       filter['issue.owner']    = owner;
     if (repoName)    filter['issue.repoName'] = repoName;
@@ -67,7 +77,9 @@ export const getReports = async (req, res, next) => {
 
     const reports = await ReportModel.find(filter).sort({ triageCompletedAt: -1 }).limit(100);
 
-    res.json({ success: true, count: reports.length, reports });
+    await setCache(cacheKey, reports, 300); // 5 min TTL
+
+    res.json({ success: true, cached: false, count: reports.length, reports });
   } catch (err) {
     next(err);
   }
@@ -78,6 +90,13 @@ export const getDashboardStats = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
     const { owner, repoName } = req.query;
+    const cacheKey = `reports:dashboard:${owner || 'all'}:${repoName || 'all'}`;
+
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, stats: cached });
+    }
+
     const filter = {};
     if (owner)    filter['issue.owner']    = owner;
     if (repoName) filter['issue.repoName'] = repoName;
@@ -96,15 +115,20 @@ export const getDashboardStats = async (req, res, next) => {
       ]),
     ]);
 
+    const stats = {
+      totalIssues:       total,
+      duplicates,
+      burnoutRisk,
+      categoryBreakdown: toBreakdown(categories, 'unknown'),
+      priorityBreakdown: toBreakdown(priorities, 'low'),
+    };
+
+    await setCache(cacheKey, stats, 300); // 5 min TTL
+
     res.json({
       success: true,
-      stats: {
-        totalIssues:       total,
-        duplicates,
-        burnoutRisk,
-        categoryBreakdown: toBreakdown(categories, 'unknown'),
-        priorityBreakdown: toBreakdown(priorities, 'low'),
-      },
+      cached: false,
+      stats,
     });
   } catch (err) {
     next(err);
@@ -115,6 +139,12 @@ export const getDashboardStats = async (req, res, next) => {
 export const getWeeklyDigest = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
+    const cacheKey = 'reports:weekly_digest';
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, digest: cached });
+    }
+
     const reports = await ReportModel.find({ triageCompletedAt: { $gte: daysAgo(7) } });
 
     const categoryCounts = {};
@@ -127,17 +157,22 @@ export const getWeeklyDigest = async (req, res, next) => {
       priorityCounts[prio] = (priorityCounts[prio] || 0) + 1;
     }
 
+    const digest = {
+      period:            'last-7-days',
+      totalTriaged:      reports.length,
+      duplicates:        reports.filter(r => r.isDuplicate).length,
+      burnoutRisk:       reports.filter(r => r.analysis?.burnoutRisk).length,
+      categoryBreakdown: categoryCounts,
+      priorityBreakdown: priorityCounts,
+      generatedAt:       new Date().toISOString(),
+    };
+
+    await setCache(cacheKey, digest, 600); // 10 min TTL
+
     res.json({
       success: true,
-      digest: {
-        period:            'last-7-days',
-        totalTriaged:      reports.length,
-        duplicates:        reports.filter(r => r.isDuplicate).length,
-        burnoutRisk:       reports.filter(r => r.analysis?.burnoutRisk).length,
-        categoryBreakdown: categoryCounts,
-        priorityBreakdown: priorityCounts,
-        generatedAt:       new Date().toISOString(),
-      },
+      cached: false,
+      digest,
     });
   } catch (err) {
     next(err);

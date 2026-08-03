@@ -5,13 +5,13 @@ import { TRIAGE_SYSTEM_PROMPT } from '../prompts/triagePrompts.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Smart NLP heuristic analysis when LLMs hit rate limits or quotas
+// Text keyword analysis fallback when AI models are unavailable
 function smartHeuristicAnalysis(title, body) {
-  logger.warn('TriageAgent: using smart NLP heuristic engine');
+  logger.warn('TriageAgent: using local text analysis fallback');
 
   const text = `${title} \n ${body}`.toLowerCase();
 
-  // Category detection
+  // Determine category
   let category = 'other';
   if (/bug|error|fail|broken|crash|exception|freeze|unexpected|not working|cannot|unable|issue|304|500|404|403|syntaxerror|typeerror|undefined|null/.test(text)) {
     category = 'bug';
@@ -21,7 +21,7 @@ function smartHeuristicAnalysis(title, body) {
     category = 'question';
   }
 
-  // Priority scoring
+  // Determine priority
   let priority = 'low';
   if (/critical|urgent|vulnerability|security|exploit|production|data loss|corrupt|blocker|fatal/.test(text)) {
     priority = 'critical';
@@ -31,10 +31,10 @@ function smartHeuristicAnalysis(title, body) {
     priority = 'medium';
   }
 
-  // Burnout / Toxicity risk detection
+  // Check tone
   const burnoutRisk = /immediately|fix this now|useless|why is this|stupid|worst|garbage|solve this|fix it|unacceptable|lazy/.test(text);
 
-  const reasoning = `Categorized as [${category}] with [${priority}] priority based on issue keywords ("${title.slice(0, 50)}").${burnoutRisk ? ' High demand / stress language flagged for burnout risk.' : ''}`;
+  const reasoning = `Categorized as [${category}] with [${priority}] priority based on issue content.`;
 
   return {
     category,
@@ -55,14 +55,14 @@ async function invokeWithTimeout(llm, messages, timeoutMs = 15000) {
   ]);
 }
 
-// Analyzes a GitHub issue with multi-model fallback (Gemini -> OpenAI -> Smart NLP)
+// Analyze issue content using AI models with local fallback
 export async function runTriageAgent(title, body, customHints = null) {
   const userContent = customHints
-    ? `Title: ${title}\nBody: ${body}\n\nAdditional triage guidelines from repo maintainer:\n${customHints}`
+    ? `Title: ${title}\nBody: ${body}\n\nAdditional triage guidelines:\n${customHints}`
     : `Title: ${title}\nBody: ${body}`;
   const messages = [new SystemMessage(TRIAGE_SYSTEM_PROMPT), new HumanMessage(userContent)];
 
-  // 1. Try Gemini
+  // Try Gemini AI first
   if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 5) {
     try {
       logger.info('TriageAgent: Calling Gemini API...');
@@ -81,11 +81,11 @@ export async function runTriageAgent(title, body, customHints = null) {
         reasoning:   parsed.reasoning   || '',
       };
     } catch (err) {
-      logger.warn(`TriageAgent: Gemini failed (${err.message}) — attempting OpenAI fallback...`);
+      logger.warn(`TriageAgent: Gemini API failed (${err.message}). Trying OpenAI fallback...`);
     }
   }
 
-  // 2. Try OpenAI Fallback
+  // Try OpenAI fallback
   if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 5) {
     try {
       logger.info('TriageAgent: Calling OpenAI API...');
@@ -104,10 +104,10 @@ export async function runTriageAgent(title, body, customHints = null) {
         reasoning:   parsed.reasoning   || '',
       };
     } catch (err) {
-      logger.warn(`TriageAgent: OpenAI failed (${err.message}) — using smart NLP heuristic engine.`);
+      logger.warn(`TriageAgent: OpenAI API failed (${err.message}). Using local text analysis.`);
     }
   }
 
-  // 3. Smart NLP Heuristic Fallback
+  // Fall back to local text analysis
   return smartHeuristicAnalysis(title, body);
 }

@@ -1,0 +1,118 @@
+services:
+  # ── Redis Cache & Queue Broker ────────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: maintainer-redis
+    restart: always
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── API Gateway (Exposed on Port 8000) ───────────────────────────────────────
+  gateway:
+    build:
+      context: ./Server
+      dockerfile: gateway/Dockerfile
+    container_name: maintainer-gateway
+    restart: always
+    ports:
+      - "8080:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_SERVICE_URL=http://ai-service:8002
+      - GITHUB_SERVICE_URL=http://github-service:8003
+      - REPORT_SERVICE_URL=http://report-service:8004
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── AI Service (Internal Container Port 8002) ────────────────────────────────
+  ai-service:
+    build:
+      context: ./Server
+      dockerfile: services/ai-service/Dockerfile
+    container_name: maintainer-ai-service
+    restart: always
+    expose:
+      - "8002"
+    env_file:
+      - ./Server/.env
+    environment:
+      - PORT=8002
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GITHUB_SERVICE_URL=http://github-service:8003
+      - REPORT_SERVICE_URL=http://report-service:8004
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── GitHub Service (Internal Container Port 8003) ───────────────────────────
+  github-service:
+    build:
+      context: ./Server
+      dockerfile: services/github-service/Dockerfile
+    container_name: maintainer-github-service
+    restart: always
+    expose:
+      - "8003"
+    env_file:
+      - ./Server/.env
+    environment:
+      - PORT=8003
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AI_SERVICE_URL=http://ai-service:8002
+      - REPORT_SERVICE_URL=http://report-service:8004
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── Report Service (Internal Container Port 8004) ───────────────────────────
+  report-service:
+    build:
+      context: ./Server
+      dockerfile: services/report-service/Dockerfile
+    container_name: maintainer-report-service
+    restart: always
+    expose:
+      - "8004"
+    env_file:
+      - ./Server/.env
+    environment:
+      - PORT=8004
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── React Client Web App (Exposed on Port 80) ───────────────────────────────
+  client:
+    build:
+      context: ./Client
+      dockerfile: Dockerfile
+    container_name: maintainer-client
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+
+networks:
+  default:
+    name: maintainer-ai-network

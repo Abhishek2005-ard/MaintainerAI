@@ -2,6 +2,7 @@ import { Octokit } from 'octokit';
 import { App } from 'octokit';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
+import { getCache, setCache } from '../../../shared/redisClient.js';
 
 let appInstance;
 let appSlugCache = null;
@@ -24,7 +25,10 @@ if (env.GITHUB_APP_ID && env.GITHUB_PRIVATE_KEY) {
 
 // Get the slug of the authenticated GitHub App dynamically
 export const getAppSlug = async () => {
+  const cached = await getCache('github:app_slug');
+  if (cached) return cached;
   if (appSlugCache) return appSlugCache;
+
   if (!appInstance) {
     logger.warn('GitHub App not initialized. Using env GITHUB_APP_SLUG as fallback.');
     return env.GITHUB_APP_SLUG;
@@ -32,6 +36,7 @@ export const getAppSlug = async () => {
   try {
     const res = await appInstance.octokit.rest.apps.getAuthenticated();
     appSlugCache = res.data.slug || env.GITHUB_APP_SLUG;
+    await setCache('github:app_slug', appSlugCache, 3600);
     return appSlugCache;
   } catch (err) {
     logger.error(`Failed to fetch authenticated app details: ${err.message}`);
@@ -41,6 +46,10 @@ export const getAppSlug = async () => {
 
 // Get specific installation details from GitHub
 export const getInstallationDetails = async (installationId) => {
+  const cacheKey = `github:installation:${installationId}`;
+  const cached = await getCache(cacheKey);
+  if (cached) return cached;
+
   if (!appInstance) {
     logger.warn('GitHub App not initialized. Returning mock installation details.');
     return {
@@ -59,6 +68,7 @@ export const getInstallationDetails = async (installationId) => {
     const { data } = await appInstance.octokit.rest.apps.getInstallation({
       installation_id: installationId
     });
+    await setCache(cacheKey, data, 1800); // 30 min cache
     return data;
   } catch (err) {
     logger.error(`Failed to fetch installation details from GitHub: ${err.message}`);

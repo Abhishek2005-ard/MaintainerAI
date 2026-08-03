@@ -6,5 +6,8 @@
   "main": "start.js",
   "scripts": {
     "start": "node start.js"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
   }
 }
