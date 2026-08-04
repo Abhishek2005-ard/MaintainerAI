@@ -3,7 +3,6 @@ import { OpenAIEmbeddings } from '@langchain/openai';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Issues with vector similarity or text similarity above these thresholds are considered duplicates.
 const VECTOR_THRESHOLD = 0.75;
 const TEXT_FALLBACK_THRESHOLD = 0.25;
 
@@ -17,7 +16,6 @@ const STOP_WORDS = new Set([
   'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now', 'this', 'that', 'these', 'those'
 ]);
 
-// Helper: Extracts meaningful token stems from text
 function getStemTokens(text) {
   return (text || '')
     .toLowerCase()
@@ -26,7 +24,6 @@ function getStemTokens(text) {
     .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 }
 
-// Compute fuzzy phrase and token similarity
 function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const titleTokensA = getStemTokens(titleA);
   const titleTokensB = getStemTokens(titleB);
@@ -46,12 +43,10 @@ function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const titleJaccard = (setA.size + setB.size - titleCommon) > 0 ? titleCommon / (setA.size + setB.size - titleCommon) : 0;
   const titleScore = (titleOverlap * 0.70) + (titleJaccard * 0.30);
 
-  // Substring or phrase inclusion bonus
   const normA = (titleA || '').toLowerCase().trim();
   const normB = (titleB || '').toLowerCase().trim();
   const phraseBonus = (normA.includes(normB) || normB.includes(normA)) && normA.length > 3 ? 0.40 : 0;
 
-  // Body tokens
   const bodyTokensA = getStemTokens(bodyA);
   const bodyTokensB = getStemTokens(bodyB);
   const bodySetA = new Set(bodyTokensA);
@@ -65,11 +60,9 @@ function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   const bodyMin = Math.min(bodySetA.size, bodySetB.size);
   const bodyOverlap = bodyMin > 0 ? bodyCommon / bodyMin : 0;
 
-  // Final score weighted towards title overlap, body overlap, and phrase inclusion bonus
   return Math.min(1.0, (titleScore * 0.60) + (bodyOverlap * 0.20) + phraseBonus);
 }
 
-// Convert a text string into a numeric vector using AI API with a timeout
 async function generateTextEmbedding(text) {
   let model;
 
@@ -101,7 +94,6 @@ async function generateTextEmbedding(text) {
   }
 }
 
-// Cosine similarity between two vectors
 function cosineSimilarity(a, b) {
   if (!a || !b || a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
   const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
@@ -111,7 +103,9 @@ function cosineSimilarity(a, b) {
   return dot / (magA * magB);
 }
 
-// Detects duplicates against all candidate issues in the repository
+/**
+ * Compares an incoming issue against candidate repository issues to detect potential duplicates.
+ */
 export async function detectDuplicate(issue, candidates) {
   logger.info(`DuplicateAgent: Checking issue #${issue.number} ("${issue.title}") against ${candidates?.length ?? 0} candidate issues.`);
 
@@ -132,7 +126,6 @@ export async function detectDuplicate(issue, candidates) {
   let bestCandidate = null;
 
   for (const candidate of candidates) {
-    // Skip comparing the issue against itself
     if (candidate.number === issue.number) continue;
 
     let score = 0;
@@ -180,3 +173,4 @@ export async function detectDuplicate(issue, candidates) {
     issueEmbedding,
   };
 }
+

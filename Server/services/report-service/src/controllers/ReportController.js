@@ -3,10 +3,9 @@ import { logger } from '../utils/logger.js';
 import { isConnected } from '../config/db.js';
 import { getCache, setCache, clearPattern } from '../../../shared/redisClient.js';
 
-// ─── DB guard ─────────────────────────────────────────────────────────────────
-
-/** Call at the top of any controller that needs MongoDB.
- *  Returns true if MongoDB is NOT ready (caller should return immediately). */
+/**
+ * Checks if the MongoDB connection is active and returns a service unavailable error if disconnected.
+ */
 function dbNotReady(res) {
   if (!isConnected()) {
     res.status(503).json({
@@ -18,9 +17,9 @@ function dbNotReady(res) {
   return false;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Converts a Mongo aggregate [ { _id, count } ] array into a plain key→count object. */
+/**
+ * Converts a Mongo aggregate array into a plain key-to-count key-value map.
+ */
 function toBreakdown(rows, fallback) {
   return rows.reduce((acc, row) => {
     acc[row._id ?? fallback] = row.count;
@@ -28,16 +27,18 @@ function toBreakdown(rows, fallback) {
   }, {});
 }
 
-/** Returns a Date that is `days` days before now. */
+/**
+ * Calculates a past date relative to the current timestamp.
+ */
 function daysAgo(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d;
 }
 
-// ─── Controllers ─────────────────────────────────────────────────────────────
-
-/** POST /reports/triage — Save a triage report sent by the AI service. */
+/**
+ * Saves a new issue triage report sent by the artificial intelligence processing service.
+ */
 export const createTriageReport = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -48,7 +49,6 @@ export const createTriageReport = async (req, res, next) => {
       `Report saved: issue #${report.issue?.number} (${report.issue?.owner}/${report.issue?.repoName})`,
     );
 
-    // Invalidate cached reports and dashboard stats
     await clearPattern('reports:*');
 
     res.status(201).json({ success: true, id: report._id });
@@ -57,7 +57,9 @@ export const createTriageReport = async (req, res, next) => {
   }
 };
 
-/** GET /reports — List reports, optionally filtered by owner, repoName, isDuplicate, or number. */
+/**
+ * Retrieves stored triage reports matching optional filters such as owner, repository, or duplicate status.
+ */
 export const getReports = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -77,7 +79,7 @@ export const getReports = async (req, res, next) => {
 
     const reports = await ReportModel.find(filter).sort({ triageCompletedAt: -1 }).limit(100);
 
-    await setCache(cacheKey, reports, 300); // 5 min TTL
+    await setCache(cacheKey, reports, 300);
 
     res.json({ success: true, cached: false, count: reports.length, reports });
   } catch (err) {
@@ -85,7 +87,9 @@ export const getReports = async (req, res, next) => {
   }
 };
 
-/** GET /reports/dashboard — Aggregate stats across stored reports (supports optional owner & repoName filters). */
+/**
+ * Aggregates analytical statistics across stored issue triage reports for dashboard displays.
+ */
 export const getDashboardStats = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -123,7 +127,7 @@ export const getDashboardStats = async (req, res, next) => {
       priorityBreakdown: toBreakdown(priorities, 'low'),
     };
 
-    await setCache(cacheKey, stats, 300); // 5 min TTL
+    await setCache(cacheKey, stats, 300);
 
     res.json({
       success: true,
@@ -135,7 +139,9 @@ export const getDashboardStats = async (req, res, next) => {
   }
 };
 
-/** GET /reports/digest — Summary of reports triaged in the last 7 days. */
+/**
+ * Generates a summary report of issues triaged over the past seven days.
+ */
 export const getWeeklyDigest = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -167,7 +173,7 @@ export const getWeeklyDigest = async (req, res, next) => {
       generatedAt:       new Date().toISOString(),
     };
 
-    await setCache(cacheKey, digest, 600); // 10 min TTL
+    await setCache(cacheKey, digest, 600);
 
     res.json({
       success: true,
@@ -178,3 +184,4 @@ export const getWeeklyDigest = async (req, res, next) => {
     next(err);
   }
 };
+

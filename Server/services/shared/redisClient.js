@@ -5,7 +5,6 @@ const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 let isConnected = false;
 let warningLogged = false;
 
-// Create Redis client connection
 export const redis = new Redis(redisUrl, {
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
@@ -35,12 +34,10 @@ redis.on('close', () => {
   isConnected = false;
 });
 
-// Check if Redis connection is ready
 export function isRedisConnected() {
   return isConnected && redis.status === 'ready';
 }
 
-// Get cached value by key
 export async function getCache(key) {
   try {
     if (!isConnected) return null;
@@ -51,7 +48,6 @@ export async function getCache(key) {
   }
 }
 
-// Save value to cache with TTL
 export async function setCache(key, value, ttlSeconds = 300) {
   try {
     if (!isConnected) return false;
@@ -67,7 +63,6 @@ export async function setCache(key, value, ttlSeconds = 300) {
   }
 }
 
-// Remove cached keys
 export async function delCache(...keys) {
   try {
     if (!isConnected || keys.length === 0) return 0;
@@ -77,7 +72,6 @@ export async function delCache(...keys) {
   }
 }
 
-// Delete cached keys matching a pattern
 export async function clearPattern(pattern) {
   try {
     if (!isConnected) return 0;
@@ -95,3 +89,4 @@ export async function clearPattern(pattern) {
     return 0;
   }
 }
+

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { repos as reposApi, auth as authApi } from '../services/api';
 
-// ── Triage Rules Panel ────────────────────────────────────────────────────────
-
 function TriageRulesPanel({ repo, onSaved }) {
   const initial = repo.triageRules || {};
   const [customLabels, setCustomLabels]           = useState((initial.customLabels || []).join(', '));
@@ -38,7 +36,6 @@ function TriageRulesPanel({ repo, onSaved }) {
     <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3">
       <p className="text-xs font-semibold text-violet-400 uppercase tracking-widest">Custom Triage Rules</p>
 
-      {/* Custom Labels */}
       <div>
         <label className="text-xs text-neutral-400 mb-1 block">Extra labels to suggest (comma-separated)</label>
         <input
@@ -50,7 +47,6 @@ function TriageRulesPanel({ repo, onSaved }) {
         />
       </div>
 
-      {/* Custom Priorities */}
       <div>
         <label className="text-xs text-neutral-400 mb-1 block">Priority levels (comma-separated)</label>
         <input
@@ -62,7 +58,6 @@ function TriageRulesPanel({ repo, onSaved }) {
         />
       </div>
 
-      {/* Custom Prompt Hints */}
       <div>
         <label className="text-xs text-neutral-400 mb-1 block">Custom AI instructions for this repo</label>
         <textarea
@@ -94,8 +89,6 @@ function TriageRulesPanel({ repo, onSaved }) {
   );
 }
 
-// ── Repo Row ──────────────────────────────────────────────────────────────────
-
 function RepoRow({ repo, onToggle, toggling, onRulesSaved }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -113,7 +106,6 @@ function RepoRow({ repo, onToggle, toggling, onRulesSaved }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Configure Triage Rules button */}
           <button
             id={`triage-rules-btn-${repo.fullName?.replace('/', '-')}`}
             onClick={() => setExpanded((v) => !v)}
@@ -123,7 +115,6 @@ function RepoRow({ repo, onToggle, toggling, onRulesSaved }) {
             <span className="material-symbols-outlined text-base">tune</span>
           </button>
 
-          {/* AI Triage toggle */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-neutral-500">AI Triage</span>
             <button
@@ -149,7 +140,6 @@ function RepoRow({ repo, onToggle, toggling, onRulesSaved }) {
         </div>
       </div>
 
-      {/* Expandable triage rules panel */}
       {expanded && (
         <div className="px-4 pb-4">
           <TriageRulesPanel repo={repo} onSaved={onRulesSaved} />
@@ -158,8 +148,6 @@ function RepoRow({ repo, onToggle, toggling, onRulesSaved }) {
     </div>
   );
 }
-
-// ── Main View ─────────────────────────────────────────────────────────────────
 
 export default function SettingsView() {
   const [repos, setRepos] = useState([]);
@@ -184,11 +172,9 @@ export default function SettingsView() {
 
   useEffect(() => {
     loadRepos();
-    // Check if redirected back from GitHub App installation setup
     const params = new URLSearchParams(window.location.search);
     if (params.get('status') === 'success') {
       setSuccessMsg('GitHub App installed and repositories synced!');
-      // Clean query params from URL without reload
       window.history.replaceState({}, document.title, window.location.pathname);
       setTimeout(() => setSuccessMsg(null), 4000);
     }
@@ -236,7 +222,6 @@ export default function SettingsView() {
     }
   };
 
-
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -265,7 +250,6 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* Error / Success */}
       {error && (
         <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">{error}</div>
       )}
@@ -273,7 +257,6 @@ export default function SettingsView() {
         <div className="mb-4 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm">{successMsg}</div>
       )}
 
-      {/* Repo List */}
       {loading ? (
         <div className="flex items-center justify-center py-16 text-neutral-500">
           <div className="w-5 h-5 border-2 border-neutral-700 border-t-neutral-300 rounded-full animate-spin mr-3" />
@@ -307,3 +290,4 @@ export default function SettingsView() {
     </div>
   );
 }
+

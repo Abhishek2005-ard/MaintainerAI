@@ -67,8 +67,6 @@ export default function IssuesView() {
     setTriageReport(null);
   };
 
-  // ── Triage triggers ──────────────────────────────────────────────────────────
-
   const buildTriagePayload = (issue) => {
     const [owner, repo] = selectedRepo.split('/');
     const repoObj = repositories.find((r) => r.fullName === selectedRepo);

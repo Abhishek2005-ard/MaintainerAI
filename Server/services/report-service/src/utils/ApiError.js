@@ -1,4 +1,6 @@
-// Custom error class that carries an HTTP status code alongside the message.
+/**
+ * Custom error class that carries an HTTP status code alongside the message.
+ */
 export class ApiError extends Error {
   constructor(statusCode, message) {
     super(message);
@@ -6,3 +8,4 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
+

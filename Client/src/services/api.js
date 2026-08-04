@@ -1,7 +1,5 @@
 const BASE = 'http://localhost:8000/api';
 
-// ── Auth-aware fetch ──────────────────────────────────────────────────────────
-
 function getToken() {
   return localStorage.getItem('maintainerai_token');
 }
@@ -25,40 +23,31 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
 export const auth = {
   /**
-   * GET /api/github/auth/login
-   * Returns { url } — the GitHub OAuth redirect URL. Open in browser.
+   * Fetches the GitHub authentication URL for user sign in.
    */
   getLoginUrl: () => apiFetch('/github/auth/login'),
 
   /**
-   * GET /api/github/auth/callback?code=...
-   * Returns { token, user } after GitHub redirects back.
+   * Exchanges the OAuth callback code for an authentication token and user profile.
    */
   handleCallback: (code) => apiFetch(`/github/auth/callback?code=${code}`),
 
   /**
-   * GET /api/github/auth/install
-   * Returns { url } — the GitHub App installation URL.
+   * Fetches the GitHub App installation setup URL.
    */
   getInstallUrl: () => apiFetch('/github/auth/install'),
 };
 
-// ── Repositories ──────────────────────────────────────────────────────────────
-
 export const repos = {
   /**
-   * GET /api/github/repos
-   * Returns { repositories: [...] }
+   * Retrieves all registered repositories for the current user.
    */
   list: () => apiFetch('/github/repos'),
 
   /**
-   * POST /api/github/repos/sync  body: { installationId }
-   * Returns { repositories: [...] }
+   * Synchronizes repository records for a specific GitHub App installation.
    */
   sync: (installationId) =>
     apiFetch('/github/repos/sync', {
@@ -67,8 +56,7 @@ export const repos = {
     }),
 
   /**
-   * POST /api/github/repos/triage  body: { fullName, active }
-   * Returns { repository: { ... } }
+   * Toggles active automated triage state for a specified repository.
    */
   toggleTriage: (fullName, active) =>
     apiFetch('/github/repos/triage', {
@@ -77,8 +65,7 @@ export const repos = {
     }),
 
   /**
-   * PUT /api/github/repos/:owner/:repo/rules  body: { customLabels, customPriorities, customPromptHints }
-   * Saves maintainer-defined triage rules for this repository.
+   * Saves custom maintainer triage configuration rules for a repository.
    */
   updateTriageRules: (owner, repo, rules) =>
     apiFetch(`/github/repos/${owner}/${repo}/rules`, {
@@ -87,19 +74,15 @@ export const repos = {
     }),
 };
 
-// ── Issues ────────────────────────────────────────────────────────────────────
-
 export const issues = {
   /**
-   * GET /api/github/issues/:owner/:repo/issues?state=open|closed|all
-   * Returns { issues: [...] }
+   * Fetches issues from a GitHub repository filtered by issue state.
    */
   list: (owner, repo, state = 'open') =>
     apiFetch(`/github/issues/${owner}/${repo}/issues?state=${state}`),
 
   /**
-   * POST /api/github/issues/:owner/:repo/issues  body: { title, body, labels }
-   * Returns { issue: { ... } }
+   * Creates a new issue in a targeted GitHub repository.
    */
   create: (owner, repo, title, body, labels = []) =>
     apiFetch(`/github/issues/${owner}/${repo}/issues`, {
@@ -108,8 +91,7 @@ export const issues = {
     }),
 
   /**
-   * POST /api/triage/webhook — manually triggers triage for a specific issue
-   * Sends the issue payload directly to the AI service, bypassing the tunnel.
+   * Triggers automated AI triage evaluation directly for a target issue.
    */
   triggerTriage: (issue, repository) =>
     apiFetch('/triage/webhook', {
@@ -122,8 +104,6 @@ export const issues = {
     }),
 };
 
-// ── Reports ───────────────────────────────────────────────────────────────────
-
 export const reports = {
   getDashboardStats: (owner, repoName) => {
     const params = new URLSearchParams();
@@ -134,8 +114,7 @@ export const reports = {
   },
 
   /**
-   * GET /api/reports/reports?owner=&repoName=&isDuplicate=&number=
-   * Returns { reports: [...] }
+   * Fetches triage reports with optional filters for repository owner or issue number.
    */
   getAll: (filters = {}) => {
     const params = new URLSearchParams();
@@ -148,15 +127,14 @@ export const reports = {
   },
 
   /**
-   * Helper to retrieve a single report for an issue.
-   * Returns { reports: [ ... ] } where the first element is the target report.
+   * Retrieves triage report information for a single specified issue.
    */
   getByIssue: (owner, repoName, number) =>
     reports.getAll({ owner, repoName, number }),
 
   /**
-   * GET /api/reports/reports/digest
-   * Returns { digest: { totalTriaged, duplicates, burnoutRisk, categoryBreakdown, priorityBreakdown } }
+   * Fetches weekly aggregated summary statistics of triaged issues.
    */
   getWeeklyDigest: () => apiFetch('/reports/reports/digest'),
 };
+

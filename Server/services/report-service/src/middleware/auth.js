@@ -4,7 +4,9 @@ import { logger } from '../utils/logger.js';
 
 const ALLOWED_ROLES = new Set(['admin', 'system', 'maintainer', 'user']);
 
-// Verifies the Bearer JWT and ensures the caller has an allowed role.
+/**
+ * Verifies the JSON Web Token authorization header and checks if the requesting role has permission.
+ */
 export function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
@@ -15,7 +17,7 @@ export function authMiddleware(req, res, next) {
   }
 
   try {
-    const token   = authHeader.slice(7); // strip "Bearer "
+    const token   = authHeader.slice(7);
     const decoded = jwt.verify(token, env.JWT_SECRET);
 
     if (!ALLOWED_ROLES.has(decoded.role)) {
@@ -31,3 +33,4 @@ export function authMiddleware(req, res, next) {
     res.status(401).json({ error: 'Invalid or expired token.' });
   }
 }
+

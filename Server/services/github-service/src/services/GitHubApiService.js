@@ -7,7 +7,6 @@ import { getCache, setCache } from '../../../shared/redisClient.js';
 let appInstance;
 let appSlugCache = null;
 
-// Initialize Octokit App
 if (env.GITHUB_APP_ID && env.GITHUB_PRIVATE_KEY) {
   try {
     appInstance = new App({
@@ -23,7 +22,9 @@ if (env.GITHUB_APP_ID && env.GITHUB_PRIVATE_KEY) {
   }
 }
 
-// Get the slug of the authenticated GitHub App dynamically
+/**
+ * Retrieves the URL slug identifier of the configured GitHub App.
+ */
 export const getAppSlug = async () => {
   const cached = await getCache('github:app_slug');
   if (cached) return cached;
@@ -44,7 +45,9 @@ export const getAppSlug = async () => {
   }
 };
 
-// Get specific installation details from GitHub
+/**
+ * Retrieves GitHub App installation metadata for a given installation identifier.
+ */
 export const getInstallationDetails = async (installationId) => {
   const cacheKey = `github:installation:${installationId}`;
   const cached = await getCache(cacheKey);
@@ -68,7 +71,7 @@ export const getInstallationDetails = async (installationId) => {
     const { data } = await appInstance.octokit.rest.apps.getInstallation({
       installation_id: installationId
     });
-    await setCache(cacheKey, data, 1800); // 30 min cache
+    await setCache(cacheKey, data, 1800);
     return data;
   } catch (err) {
     logger.error(`Failed to fetch installation details from GitHub: ${err.message}`);
@@ -76,16 +79,20 @@ export const getInstallationDetails = async (installationId) => {
   }
 };
 
-// Get Octokit instance authenticated for a specific installation
+/**
+ * Instantiates an Octokit client authenticated specifically for a target installation.
+ */
 export const getInstallationClient = async (installationId) => {
   if (!appInstance) {
     logger.warn('GitHub App not initialized. Falling back to mock client.');
-    return new Octokit(); // Return unauthenticated or fallback mock client
+    return new Octokit();
   }
   return await appInstance.getInstallationOctokit(installationId);
 };
 
-// Exchange code for OAuth user access token
+/**
+ * Exchanges a GitHub OAuth authorization code for a user access token.
+ */
 export const getOAuthAccessToken = async (code) => {
   try {
     if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
@@ -116,7 +123,9 @@ export const getOAuthAccessToken = async (code) => {
   }
 };
 
-// Get User Profile using user OAuth token
+/**
+ * Fetches the GitHub user profile and primary email using an OAuth user access token.
+ */
 export const getUserProfile = async (token) => {
   const octokit = new Octokit({ auth: token });
   const { data: user } = await octokit.rest.users.getAuthenticated();
@@ -138,14 +147,12 @@ export const getUserProfile = async (token) => {
   };
 };
 
-// List installation repositories
 export const listInstallationRepositories = async (installationId) => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.apps.listReposAccessibleToInstallation();
   return data.repositories;
 };
 
-// List issues in a repository
 export const listIssues = async (installationId, owner, repo, state = 'open') => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.issues.listForRepo({
@@ -156,7 +163,6 @@ export const listIssues = async (installationId, owner, repo, state = 'open') =>
   return data;
 };
 
-// Create an issue
 export const createIssue = async (installationId, owner, repo, title, body, labels) => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.issues.create({
@@ -169,7 +175,6 @@ export const createIssue = async (installationId, owner, repo, title, body, labe
   return data;
 };
 
-// Update an issue
 export const updateIssue = async (installationId, owner, repo, issueNumber, update) => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.issues.update({
@@ -181,7 +186,6 @@ export const updateIssue = async (installationId, owner, repo, issueNumber, upda
   return data;
 };
 
-// Create a comment
 export const createComment = async (installationId, owner, repo, issueNumber, body) => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.issues.createComment({
@@ -193,7 +197,6 @@ export const createComment = async (installationId, owner, repo, issueNumber, bo
   return data;
 };
 
-// Get comments for an issue
 export const getComments = async (installationId, owner, repo, issueNumber) => {
   const octokit = await getInstallationClient(installationId);
   const { data } = await octokit.rest.issues.listComments({

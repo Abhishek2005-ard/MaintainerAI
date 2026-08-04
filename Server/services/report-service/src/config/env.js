@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Look for .env in current cwd, or parent directories (e.g. Server/.env)
 const envPaths = [
   path.resolve(process.cwd(), '.env'),
   path.resolve(process.cwd(), '../.env'),
@@ -21,3 +20,4 @@ export const env = {
   MONGO_URI:  process.env.REPORT_MONGO_URI        || 'mongodb://127.0.0.1:27017/maintainer_ai_reports',
   JWT_SECRET: process.env.JWT_SECRET              || 'super_secret_jwt_key_2026',
 };
+

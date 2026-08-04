@@ -5,13 +5,11 @@ import { TRIAGE_SYSTEM_PROMPT } from '../prompts/triagePrompts.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Text keyword analysis fallback when AI models are unavailable
 function smartHeuristicAnalysis(title, body) {
   logger.warn('TriageAgent: using local text analysis fallback');
 
   const text = `${title} \n ${body}`.toLowerCase();
 
-  // Determine category
   let category = 'other';
   if (/bug|error|fail|broken|crash|exception|freeze|unexpected|not working|cannot|unable|issue|304|500|404|403|syntaxerror|typeerror|undefined|null/.test(text)) {
     category = 'bug';
@@ -21,7 +19,6 @@ function smartHeuristicAnalysis(title, body) {
     category = 'question';
   }
 
-  // Determine priority
   let priority = 'low';
   if (/critical|urgent|vulnerability|security|exploit|production|data loss|corrupt|blocker|fatal/.test(text)) {
     priority = 'critical';
@@ -31,7 +28,6 @@ function smartHeuristicAnalysis(title, body) {
     priority = 'medium';
   }
 
-  // Check tone
   const burnoutRisk = /immediately|fix this now|useless|why is this|stupid|worst|garbage|solve this|fix it|unacceptable|lazy/.test(text);
 
   const reasoning = `Categorized as [${category}] with [${priority}] priority based on issue content.`;
@@ -55,14 +51,15 @@ async function invokeWithTimeout(llm, messages, timeoutMs = 15000) {
   ]);
 }
 
-// Analyze issue content using AI models with local fallback
+/**
+ * Analyzes issue content using artificial intelligence models or local text analysis fallback.
+ */
 export async function runTriageAgent(title, body, customHints = null) {
   const userContent = customHints
     ? `Title: ${title}\nBody: ${body}\n\nAdditional triage guidelines:\n${customHints}`
     : `Title: ${title}\nBody: ${body}`;
   const messages = [new SystemMessage(TRIAGE_SYSTEM_PROMPT), new HumanMessage(userContent)];
 
-  // Try Gemini AI first
   if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 5) {
     try {
       logger.info('TriageAgent: Calling Gemini API...');
@@ -85,7 +82,6 @@ export async function runTriageAgent(title, body, customHints = null) {
     }
   }
 
-  // Try OpenAI fallback
   if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 5) {
     try {
       logger.info('TriageAgent: Calling OpenAI API...');
@@ -108,6 +104,6 @@ export async function runTriageAgent(title, body, customHints = null) {
     }
   }
 
-  // Fall back to local text analysis
   return smartHeuristicAnalysis(title, body);
 }
+

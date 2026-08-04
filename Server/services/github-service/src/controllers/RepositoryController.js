@@ -2,7 +2,9 @@ import * as repositoryService from '../services/RepositoryService.js';
 import { ApiError } from '../utils/ApiError.js';
 import { isConnected } from '../config/db.js';
 
-// ─── DB guard ─────────────────────────────────────────────────────────────────
+/**
+ * Checks if the MongoDB connection is active and returns a service unavailable error if disconnected.
+ */
 function dbNotReady(res) {
   if (!isConnected()) {
     res.status(503).json({
@@ -14,8 +16,6 @@ function dbNotReady(res) {
   return false;
 }
 
-
-// Get all active repositories
 export const getRepositories = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -26,7 +26,6 @@ export const getRepositories = async (req, res, next) => {
   }
 };
 
-// Force sync repositories for an installation
 export const syncRepositories = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -42,7 +41,6 @@ export const syncRepositories = async (req, res, next) => {
   }
 };
 
-// Toggle triage rules state for a repository
 export const toggleTriageRules = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -58,7 +56,6 @@ export const toggleTriageRules = async (req, res, next) => {
   }
 };
 
-// Update custom triage rules for a specific repository
 export const updateTriageRules = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -84,3 +81,4 @@ export const updateTriageRules = async (req, res, next) => {
     next(err);
   }
 };
+

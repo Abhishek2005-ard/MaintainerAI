@@ -3,7 +3,9 @@ import * as repositoryService from '../services/RepositoryService.js';
 import { ApiError } from '../utils/ApiError.js';
 import { isConnected } from '../config/db.js';
 
-// ─── DB guard ─────────────────────────────────────────────────────────────────
+/**
+ * Checks if the MongoDB connection is active and returns a service unavailable error if disconnected.
+ */
 function dbNotReady(res) {
   if (!isConnected()) {
     res.status(503).json({
@@ -15,8 +17,6 @@ function dbNotReady(res) {
   return false;
 }
 
-
-// GET /repos/:owner/:repo/issues
 export const getIssues = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -37,7 +37,6 @@ export const getIssues = async (req, res, next) => {
   }
 };
 
-// POST /repos/:owner/:repo/issues
 export const createIssue = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -64,7 +63,6 @@ export const createIssue = async (req, res, next) => {
   }
 };
 
-// PATCH /repos/:owner/:repo/issues/:number
 export const updateIssue = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -86,7 +84,6 @@ export const updateIssue = async (req, res, next) => {
   }
 };
 
-// POST /repos/:owner/:repo/issues/:number/comments
 export const createComment = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -112,7 +109,6 @@ export const createComment = async (req, res, next) => {
   }
 };
 
-// GET /repos/:owner/:repo/issues/:number/comments
 export const getComments = async (req, res, next) => {
   if (dbNotReady(res)) return;
   try {
@@ -131,3 +127,4 @@ export const getComments = async (req, res, next) => {
     next(err);
   }
 };
+

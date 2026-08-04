@@ -1,7 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
 
-// ─── Schema ──────────────────────────────────────────────────────────────────
-
 const ReportSchema = new Schema(
   {
     issue: {
@@ -32,8 +30,6 @@ const ReportSchema = new Schema(
   { timestamps: true },
 );
 
-// ─── Model ───────────────────────────────────────────────────────────────────
-
-// Guard against model re-registration in watch/hot-reload environments.
 export const ReportModel =
   mongoose.models.Report || mongoose.model('Report', ReportSchema);
+

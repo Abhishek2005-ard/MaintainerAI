@@ -8,11 +8,9 @@ import reportRoutes from './routes/reportRoutes.js';
 
 const app = express();
 
-// ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
-// ── Routes ────────────────────────────────────────────────────────────────────
 app.use(reportRoutes);
 
 app.get('/health', (_req, res) => {
@@ -23,10 +21,8 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// ── Error handling (must come last) ──────────────────────────────────────────
 app.use(errorHandler);
 
-// Prevent unhandled errors from crashing the Report Service process
 process.on('uncaughtException', (err) => {
   logger.error(`[Process] Uncaught Exception in Report Service: ${err.message}`);
 });
@@ -44,3 +40,4 @@ async function start() {
 }
 
 start();
+

@@ -5,7 +5,6 @@ import { LABEL_PREDICTION_PROMPT } from '../prompts/triagePrompts.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Derives smart labels from the analysis
 function smartLabels(analysis) {
   const labels = [
     analysis.category,
@@ -26,7 +25,9 @@ async function invokeWithTimeout(llm, messages, timeoutMs = 15000) {
   ]);
 }
 
-// Asks LLMs (Gemini -> OpenAI -> Smart Fallback) to predict GitHub labels based on issue analysis
+/**
+ * Predicts GitHub issue labels and priority based on analysis data using available LLM integrations.
+ */
 export async function predictLabels(analysis) {
   const input = JSON.stringify({
     category:    analysis.category,
@@ -35,7 +36,6 @@ export async function predictLabels(analysis) {
   });
   const messages = [new SystemMessage(LABEL_PREDICTION_PROMPT), new HumanMessage(`Issue analysis:\n${input}`)];
 
-  // 1. Try Gemini
   if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 5) {
     try {
       logger.info('LabelAgent: Calling Gemini API for labels...');
@@ -56,7 +56,6 @@ export async function predictLabels(analysis) {
     }
   }
 
-  // 2. Try OpenAI
   if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim().length > 5) {
     try {
       logger.info('LabelAgent: Calling OpenAI API for labels...');
@@ -77,6 +76,6 @@ export async function predictLabels(analysis) {
     }
   }
 
-  // 3. Fallback Labels
   return smartLabels(analysis);
 }
+

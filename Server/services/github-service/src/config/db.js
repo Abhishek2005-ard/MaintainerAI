@@ -2,17 +2,14 @@ import mongoose from 'mongoose';
 import { logger } from '../utils/logger.js';
 import { env } from './env.js';
 
-// Track whether Mongoose successfully connected
 let _connected = false;
 
-/** Returns true only after a successful mongoose.connect() call. */
 export function isConnected() {
   return _connected && mongoose.connection.readyState === 1;
 }
 
 export const connectDB = async () => {
   mongoose.set('strictQuery', true);
-  // Disable Mongoose operation buffering so queries fail fast with 503 if DB is unreachable
   mongoose.set('bufferCommands', false);
 
   try {
@@ -35,7 +32,7 @@ export const connectDB = async () => {
     _connected = false;
     logger.error(`MongoDB connection failed: ${error.message}`);
     logger.error('Check that GITHUB_MONGO_URI in .env is correct and your Atlas IP whitelist includes your IP.');
-    // Schedule background retry after 5 seconds so temporary startup issues resolve automatically
     setTimeout(connectDB, 5000);
   }
 };
+

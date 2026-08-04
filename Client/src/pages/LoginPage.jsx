@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { auth as authApi } from '../services/api';
 
-// Module-level Set to prevent duplicate OAuth code exchanges (common in React StrictMode)
 const processedCodes = new Set();
 
 export default function LoginPage() {
@@ -15,7 +14,6 @@ export default function LoginPage() {
 
   const code = searchParams.get('code');
 
-  // Handle OAuth callback: ?code=xxx arrives here after GitHub redirects back
   useEffect(() => {
     if (!code || processedCodes.has(code)) return;
     processedCodes.add(code);
@@ -37,12 +35,10 @@ export default function LoginPage() {
     handleAuth();
   }, [code, login, navigate]);
 
-  // Already logged in — redirect
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  // Build GitHub OAuth URL directly — no backend call needed for this step
   const GITHUB_CLIENT_ID = 'Iv23licHQX1HeURlZs4L';
   const CALLBACK_URL = 'http://127.0.0.1:5173/login';
 
@@ -59,16 +55,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4" style={{ background: '#050505' }}>
-      {/* Background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)' }} />
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        {/* Card */}
         <div className="rounded-2xl border border-white/10 p-8" style={{ background: 'rgba(18,18,18,0.8)', backdropFilter: 'blur(20px)' }}>
-          {/* Logo */}
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="w-12 h-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center">
               <span className="material-symbols-outlined text-white text-2xl">shield_with_heart</span>
@@ -83,14 +76,12 @@ export default function LoginPage() {
             Connect your GitHub account to start triaging issues automatically.
           </p>
 
-          {/* Error */}
           {error && (
             <div className="mb-6 p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
               {error}
             </div>
           )}
 
-          {/* OAuth Button */}
           <button
             id="github-login-btn"
             onClick={handleLogin}
@@ -117,7 +108,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Back to landing */}
         <div className="mt-6 text-center">
           <a href="/" className="text-sm text-neutral-500 hover:text-neutral-300 transition-colors">
             ← Back to homepage
@@ -127,3 +117,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

@@ -42,7 +42,6 @@ export const syncRepositoriesForInstallation = async (installationId) => {
     );
   }
 
-  // Deactivate any repositories no longer associated with installation
   await RepositoryModel.updateMany(
     { installationId, repoId: { $nin: activeRepoIds } },
     { isActive: false }
@@ -65,7 +64,9 @@ export const toggleTriageRulesForRepo = async (fullName, active) => {
   return repo;
 };
 
-// Saves custom triage rules set by the maintainer for a specific repository
+/**
+ * Saves custom triage rules configured by a repository maintainer.
+ */
 export const saveTriageRules = async (owner, name, rules) => {
   const { customLabels, customPriorities, customPromptHints } = rules;
 

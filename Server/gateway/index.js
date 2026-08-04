@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Load environment variables
 const envPaths = [
   path.resolve(process.cwd(), '.env'),
   path.resolve(process.cwd(), '../.env'),
@@ -23,16 +22,13 @@ import { redis, isRedisConnected } from '../services/shared/redisClient.js';
 const app = express();
 const PORT = parseInt(process.env.PORT || '8000', 10);
 
-// Upstream microservice URLs
 const AI_SERVICE_URL     = process.env.AI_SERVICE_URL     || 'http://127.0.0.1:8002';
 const GITHUB_SERVICE_URL = process.env.GITHUB_SERVICE_URL || 'http://127.0.0.1:8003';
 const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://127.0.0.1:8004';
 
-// Express middleware
 app.use(cors());
 app.use(morgan('dev'));
 
-// Rate limiting middleware
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -51,7 +47,6 @@ const apiLimiter = rateLimit({
 
 app.use('/api/', apiLimiter);
 
-// Log gateway errors to file
 function logGatewayError(req, err) {
   const logMsg = `[${new Date().toISOString()}] GATEWAY PROXY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
   try {
@@ -61,7 +56,6 @@ function logGatewayError(req, err) {
   }
 }
 
-// Proxy requests to AI Service
 app.use('/api/triage', proxy(AI_SERVICE_URL, {
   timeout: 120000,
   proxyErrorHandler: (err, res, next) => {
@@ -70,7 +64,6 @@ app.use('/api/triage', proxy(AI_SERVICE_URL, {
   }
 }));
 
-// Proxy requests to GitHub Service
 app.use('/api/github', proxy(GITHUB_SERVICE_URL, {
   timeout: 120000,
   proxyErrorHandler: (err, res, next) => {
@@ -79,7 +72,6 @@ app.use('/api/github', proxy(GITHUB_SERVICE_URL, {
   }
 }));
 
-// Proxy requests to Report Service
 app.use('/api/reports', proxy(REPORT_SERVICE_URL, {
   timeout: 120000,
   proxyReqPathResolver: (req) => {
@@ -95,7 +87,6 @@ app.use('/api/reports', proxy(REPORT_SERVICE_URL, {
   }
 }));
 
-// Global error handler
 app.use((err, req, res, next) => {
   const logMsg = `[${new Date().toISOString()}] GATEWAY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
   try {
@@ -106,7 +97,6 @@ app.use((err, req, res, next) => {
   res.status(504).json({ error: err.message || 'Gateway Proxy Error' });
 });
 
-// Health check endpoint
 app.get('/health', (_req, res) => {
   res.json({
     service:  'MaintainerAI API Gateway',
@@ -121,7 +111,6 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// Process safety error handlers
 process.on('uncaughtException', (err) => {
   console.error(`[${new Date().toISOString()}] UNCAUGHT EXCEPTION in Gateway:`, err.message);
   logGatewayError({ method: 'PROCESS', originalUrl: 'uncaughtException' }, err);
@@ -133,10 +122,10 @@ process.on('unhandledRejection', (reason) => {
   logGatewayError({ method: 'PROCESS', originalUrl: 'unhandledRejection' }, err);
 });
 
-// Start gateway server
 app.listen(PORT, () => {
   console.log(`\n MaintainerAI API Gateway — http://localhost:${PORT}\n`);
   console.log(`  /api/triage  →  AI Service     (${AI_SERVICE_URL})`);
   console.log(`  /api/github  →  GitHub Service  (${GITHUB_SERVICE_URL})`);
   console.log(`  /api/reports →  Report Service  (${REPORT_SERVICE_URL})\n`);
 });
+

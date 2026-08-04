@@ -83,7 +83,6 @@ export const handleIssueEvent = async (payload) => {
     logger.error(`Failed to save issue to MongoDB: ${err.message}`);
   }
 
-  // Look up any custom triage rules the maintainer has configured for this repo
   let triageRules = null;
   try {
     const repoDoc = await RepositoryModel.findOne({ owner: repo.owner.login, name: repo.name });
