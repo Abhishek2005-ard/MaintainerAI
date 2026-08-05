@@ -3,13 +3,13 @@ services:
   - type: web
     name: maintainer-gateway
     env: docker
-    dockerfilePath: ./Server/gateway/Dockerfile
-    dockerContext: ./Server
+    dockerfilePath: Server/gateway/Dockerfile
+    dockerContext: Server
     plan: free
     region: oregon
     envVars:
       - key: PORT
-        value: 8000
+        value: "8000"
       - key: NODE_ENV
         value: production
       - key: REDIS_URL
@@ -27,16 +27,16 @@ services:
         generateValue: true
 
   # 2. AI Service
-  - type: pserv
+  - type: web
     name: maintainer-ai-service
     env: docker
-    dockerfilePath: ./Server/services/ai-service/Dockerfile
-    dockerContext: ./Server
+    dockerfilePath: Server/services/ai-service/Dockerfile
+    dockerContext: Server
     plan: free
     region: oregon
     envVars:
       - key: PORT
-        value: 8002
+        value: "8002"
       - key: NODE_ENV
         value: production
       - key: REDIS_URL
@@ -50,16 +50,16 @@ services:
         sync: false
 
   # 3. GitHub Service
-  - type: pserv
+  - type: web
     name: maintainer-github-service
     env: docker
-    dockerfilePath: ./Server/services/github-service/Dockerfile
-    dockerContext: ./Server
+    dockerfilePath: Server/services/github-service/Dockerfile
+    dockerContext: Server
     plan: free
     region: oregon
     envVars:
       - key: PORT
-        value: 8003
+        value: "8003"
       - key: NODE_ENV
         value: production
       - key: REDIS_URL
@@ -83,16 +83,16 @@ services:
         sync: false
 
   # 4. Report Service
-  - type: pserv
+  - type: web
     name: maintainer-report-service
     env: docker
-    dockerfilePath: ./Server/services/report-service/Dockerfile
-    dockerContext: ./Server
+    dockerfilePath: Server/services/report-service/Dockerfile
+    dockerContext: Server
     plan: free
     region: oregon
     envVars:
       - key: PORT
-        value: 8004
+        value: "8004"
       - key: NODE_ENV
         value: production
       - key: REDIS_URL
