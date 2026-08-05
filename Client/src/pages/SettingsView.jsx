@@ -218,7 +218,8 @@ export default function SettingsView() {
       const { url } = await authApi.getInstallUrl();
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      window.open('https://github.com/apps/maintainerai-abhishek-dhatrak/installations/new', '_blank', 'noopener,noreferrer');
+      const appSlug = import.meta.env.VITE_GITHUB_APP_SLUG || 'maintainerai-abhishek-dhatrak';
+      window.open(`https://github.com/apps/${appSlug}/installations/new`, '_blank', 'noopener,noreferrer');
     }
   };
 
