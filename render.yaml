@@ -71,6 +71,8 @@ services:
           property: connectionString
       - key: AGENT_SERVICE_URL
         value: https://maintainer-ai-service.onrender.com
+      - key: CLIENT_URL
+        value: https://maintainerai.vercel.app
       - key: GITHUB_MONGO_URI
         sync: false
       - key: GITHUB_APP_ID
