@@ -39,18 +39,15 @@ export default function LoginPage() {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || 'Iv23licHQX1HeURlZs4L';
-  const CALLBACK_URL = `${window.location.origin}/login`;
-
-  const handleLogin = () => {
-    const params = new URLSearchParams({
-      client_id: GITHUB_CLIENT_ID,
-      redirect_uri: CALLBACK_URL,
-      scope: 'user:email,repo',
-    });
-    const oauthUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
-    console.log('Redirecting to GitHub OAuth:', oauthUrl);
-    window.location.href = oauthUrl;
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      const { url } = await authApi.getLoginUrl();
+      window.location.href = url;
+    } catch (err) {
+      setError('Failed to contact login server. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
