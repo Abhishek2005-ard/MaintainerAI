@@ -18,11 +18,13 @@ services:
           name: maintainer-redis
           property: connectionString
       - key: AI_SERVICE_URL
-        value: http://maintainer-ai-service:8002
+        value: https://maintainer-ai-service.onrender.com
       - key: GITHUB_SERVICE_URL
-        value: http://maintainer-github-service:8003
+        value: https://maintainer-github-service.onrender.com
       - key: REPORT_SERVICE_URL
-        value: http://maintainer-report-service:8004
+        value: https://maintainer-report-service.onrender.com
+      - key: CORS_ORIGIN
+        value: https://maintainerai.vercel.app
       - key: JWT_SECRET
         generateValue: true
 
@@ -68,7 +70,7 @@ services:
           name: maintainer-redis
           property: connectionString
       - key: AGENT_SERVICE_URL
-        value: http://maintainer-ai-service:8002
+        value: https://maintainer-ai-service.onrender.com
       - key: GITHUB_MONGO_URI
         sync: false
       - key: GITHUB_APP_ID

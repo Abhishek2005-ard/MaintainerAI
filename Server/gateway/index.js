@@ -29,7 +29,7 @@ const AI_SERVICE_URL     = process.env.AI_SERVICE_URL     || 'http://127.0.0.1:8
 const GITHUB_SERVICE_URL = process.env.GITHUB_SERVICE_URL || 'http://127.0.0.1:8003';
 const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://127.0.0.1:8004';
 
-const corsOrigin = process.env.CORS_ORIGIN || '*';
+const corsOrigin = process.env.CORS_ORIGIN || 'https://maintainerai.vercel.app';
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(morgan('dev'));
 
