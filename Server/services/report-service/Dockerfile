@@ -15,6 +15,8 @@ COPY --from=builder /app/services/report-service/node_modules ./services/report-
 COPY services/report-service ./services/report-service
 COPY services/shared ./services/shared
 
+USER node
+
 EXPOSE 8004
 
 CMD ["node", "services/report-service/src/index.js"]

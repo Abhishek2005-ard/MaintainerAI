@@ -19,14 +19,18 @@ import { rateLimit } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redis, isRedisConnected } from '../services/shared/redisClient.js';
 
+import jwt from 'jsonwebtoken';
+
 const app = express();
 const PORT = parseInt(process.env.PORT || '8000', 10);
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key';
 
 const AI_SERVICE_URL     = process.env.AI_SERVICE_URL     || 'http://127.0.0.1:8002';
 const GITHUB_SERVICE_URL = process.env.GITHUB_SERVICE_URL || 'http://127.0.0.1:8003';
 const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL || 'http://127.0.0.1:8004';
 
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN || '*';
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(morgan('dev'));
 
 const apiLimiter = rateLimit({
@@ -48,13 +52,28 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 function logGatewayError(req, err) {
-  const logMsg = `[${new Date().toISOString()}] GATEWAY PROXY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
-  try {
-    fs.appendFileSync(path.resolve(process.cwd(), '../error.log'), logMsg);
-  } catch (fsErr) {
-    console.error('Failed to write gateway error to log file:', fsErr.message);
+  console.error(`[${new Date().toISOString()}] GATEWAY PROXY ERROR ${req.method || 'UNKNOWN'} ${req.originalUrl || 'UNKNOWN'} - ${err.message}`);
+  if (err.stack) {
+    console.error(err.stack);
   }
 }
+
+// Optional JWT verification middleware for protected API endpoints
+const verifyJwtToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Missing or malformed Bearer token.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Invalid or expired token.' });
+  }
+};
 
 app.use('/api/triage', proxy(AI_SERVICE_URL, {
   timeout: 120000,
@@ -88,12 +107,7 @@ app.use('/api/reports', proxy(REPORT_SERVICE_URL, {
 }));
 
 app.use((err, req, res, next) => {
-  const logMsg = `[${new Date().toISOString()}] GATEWAY ERROR ${req.method} ${req.originalUrl} - ${err.message}\nStack: ${err.stack}\n\n`;
-  try {
-    fs.appendFileSync(path.resolve(process.cwd(), '../error.log'), logMsg);
-  } catch (fsErr) {
-    console.error('Failed to write gateway error to log file:', fsErr.message);
-  }
+  logGatewayError(req, err);
   res.status(504).json({ error: err.message || 'Gateway Proxy Error' });
 });
 

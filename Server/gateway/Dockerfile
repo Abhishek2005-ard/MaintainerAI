@@ -15,6 +15,8 @@ COPY --from=builder /app/gateway/node_modules ./gateway/node_modules
 COPY gateway ./gateway
 COPY services/shared ./services/shared
 
+USER node
+
 EXPOSE 8000
 
 CMD ["node", "gateway/index.js"]

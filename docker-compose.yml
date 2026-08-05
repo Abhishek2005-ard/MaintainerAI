@@ -1,5 +1,4 @@
 services:
-  # ── Redis Cache & Queue Broker ────────────────────────────────────────────────
   redis:
     image: redis:alpine
     container_name: maintainer-redis
@@ -12,7 +11,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── API Gateway (Exposed on Port 8000) ───────────────────────────────────────
   gateway:
     build:
       context: ./Server
@@ -34,7 +32,6 @@ services:
       redis:
         condition: service_healthy
 
-  # ── AI Service (Internal Container Port 8002) ────────────────────────────────
   ai-service:
     build:
       context: ./Server
@@ -57,7 +54,6 @@ services:
       redis:
         condition: service_healthy
 
-  # ── GitHub Service (Internal Container Port 8003) ───────────────────────────
   github-service:
     build:
       context: ./Server
@@ -80,7 +76,6 @@ services:
       redis:
         condition: service_healthy
 
-  # ── Report Service (Internal Container Port 8004) ───────────────────────────
   report-service:
     build:
       context: ./Server
@@ -101,7 +96,6 @@ services:
       redis:
         condition: service_healthy
 
-  # ── React Client Web App (Exposed on Port 80) ───────────────────────────────
   client:
     build:
       context: ./Client
@@ -116,3 +110,4 @@ services:
 networks:
   default:
     name: maintainer-ai-network
+

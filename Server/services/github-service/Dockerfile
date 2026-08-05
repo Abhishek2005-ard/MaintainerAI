@@ -15,6 +15,8 @@ COPY --from=builder /app/services/github-service/node_modules ./services/github-
 COPY services/github-service ./services/github-service
 COPY services/shared ./services/shared
 
+USER node
+
 EXPOSE 8003
 
 CMD ["node", "services/github-service/src/index.js"]

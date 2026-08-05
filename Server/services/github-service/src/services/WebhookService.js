@@ -95,24 +95,27 @@ export const handleIssueEvent = async (payload) => {
   }
 
   const forwardUrl = `${env.AGENT_SERVICE_URL}/webhook`;
-  logger.info(`Forwarding issue event to Agent Service at ${forwardUrl}...`);
+  logger.info(`Dispatching issue event asynchronously to Agent Service at ${forwardUrl}...`);
 
-  try {
-    const response = await internalRequest(forwardUrl, {
-      method: 'POST',
-      body: JSON.stringify({
-        action,
-        issue: issueData,
-        repository: { id: repo.id, name: repo.name, fullName: repo.full_name, owner: repo.owner.login },
-        triageRules,
-      }),
-    });
-    if (!response.ok) {
-      logger.error(`Agent service error: ${response.status}`);
-    } else {
-      logger.info(`Successfully forwarded issue event to Agent Service.`);
+  // Asynchronous non-blocking dispatch to prevent GitHub 10-second webhook timeout
+  setImmediate(async () => {
+    try {
+      const response = await internalRequest(forwardUrl, {
+        method: 'POST',
+        body: JSON.stringify({
+          action,
+          issue: issueData,
+          repository: { id: repo.id, name: repo.name, fullName: repo.full_name, owner: repo.owner.login },
+          triageRules,
+        }),
+      });
+      if (!response.ok) {
+        logger.error(`Agent service error: ${response.status}`);
+      } else {
+        logger.info(`Successfully forwarded issue event to Agent Service asynchronously.`);
+      }
+    } catch (err) {
+      logger.error(`Failed to forward issue event to Agent Service: ${err.message}`);
     }
-  } catch (err) {
-    logger.error(`Failed to forward issue event to Agent Service: ${err.message}`);
-  }
+  });
 };

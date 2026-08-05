@@ -11,7 +11,7 @@ function smartHeuristicAnalysis(title, body) {
   const text = `${title} \n ${body}`.toLowerCase();
 
   let category = 'other';
-  if (/bug|error|fail|broken|crash|exception|freeze|unexpected|not working|cannot|unable|issue|304|500|404|403|syntaxerror|typeerror|undefined|null/.test(text)) {
+  if (/bug|error|fail|broken|crash|exception|freeze|unexpected|not working|cannot|unable|issue|vulnerability|security|exploit|304|500|404|403|syntaxerror|typeerror|undefined|null/.test(text)) {
     category = 'bug';
   } else if (/feature|add|suggest|request|support|allow|enable|option|setting|enhance|upgrade|new/.test(text)) {
     category = 'feature';

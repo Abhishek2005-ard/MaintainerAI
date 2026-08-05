@@ -15,6 +15,8 @@ COPY --from=builder /app/services/ai-service/node_modules ./services/ai-service/
 COPY services/ai-service ./services/ai-service
 COPY services/shared ./services/shared
 
+USER node
+
 EXPOSE 8002
 
 CMD ["node", "services/ai-service/src/index.js"]

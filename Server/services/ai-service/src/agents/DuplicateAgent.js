@@ -63,9 +63,21 @@ function computeTextSimilarity(titleA, bodyA, titleB, bodyB) {
   return Math.min(1.0, (titleScore * 0.60) + (bodyOverlap * 0.20) + phraseBonus);
 }
 
-async function generateTextEmbedding(text) {
-  let model;
+import { getCache, setCache } from '../../../shared/redisClient.js';
 
+async function generateTextEmbedding(text) {
+  if (!text || text.trim().length === 0) return [];
+  
+  // Clean cache key based on basic string hashing
+  const cacheKey = `emb:${Buffer.from(text.slice(0, 100)).toString('base64').replace(/=/g, '')}`;
+  try {
+    const cached = await getCache(cacheKey);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached;
+    }
+  } catch (_) {}
+
+  let model;
   if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim().length > 5) {
     model = new GoogleGenerativeAIEmbeddings({
       apiKey: env.GEMINI_API_KEY,
@@ -87,6 +99,9 @@ async function generateTextEmbedding(text) {
       model.embedQuery(text),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Embedding API timeout')), 4000))
     ]);
+    if (result && result.length > 0) {
+      await setCache(cacheKey, result, 86400); // cache for 24h
+    }
     return result;
   } catch (err) {
     logger.warn(`DuplicateAgent: Embedding API skipped (${err.message}). Using smart NLP similarity fallback.`);
