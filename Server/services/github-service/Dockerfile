@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY services/github-service/package*.json ./services/github-service/
 
-RUN npm ci --only=production && cd services/github-service && npm ci --only=production
+RUN npm install --omit=dev --legacy-peer-deps && cd services/github-service && npm install --omit=dev --legacy-peer-deps
 
 FROM node:20-alpine AS runner
 WORKDIR /app

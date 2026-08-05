@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY services/report-service/package*.json ./services/report-service/
 
-RUN npm ci --only=production && cd services/report-service && npm ci --only=production
+RUN npm install --omit=dev --legacy-peer-deps && cd services/report-service && npm install --omit=dev --legacy-peer-deps
 
 FROM node:20-alpine AS runner
 WORKDIR /app

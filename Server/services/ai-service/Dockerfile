@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY services/ai-service/package*.json ./services/ai-service/
 
-RUN npm install --legacy-peer-deps --only=production && cd services/ai-service && npm install --legacy-peer-deps --only=production
+RUN npm install --omit=dev --legacy-peer-deps && cd services/ai-service && npm install --omit=dev --legacy-peer-deps
 
 FROM node:20-alpine AS runner
 WORKDIR /app
