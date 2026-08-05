@@ -39,8 +39,8 @@ export default function LoginPage() {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const GITHUB_CLIENT_ID = 'Iv23licHQX1HeURlZs4L';
-  const CALLBACK_URL = 'http://127.0.0.1:5173/login';
+  const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || 'Iv23licHQX1HeURlZs4L';
+  const CALLBACK_URL = `${window.location.origin}/login`;
 
   const handleLogin = () => {
     const params = new URLSearchParams({
