@@ -1,0 +1,111 @@
+services:
+  # 1. API Gateway
+  - type: web
+    name: maintainer-gateway
+    env: docker
+    dockerfilePath: ./Server/gateway/Dockerfile
+    dockerContext: ./Server
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: maintainer-redis
+          property: connectionString
+      - key: AI_SERVICE_URL
+        value: http://maintainer-ai-service:8002
+      - key: GITHUB_SERVICE_URL
+        value: http://maintainer-github-service:8003
+      - key: REPORT_SERVICE_URL
+        value: http://maintainer-report-service:8004
+      - key: JWT_SECRET
+        generateValue: true
+
+  # 2. AI Service
+  - type: pserv
+    name: maintainer-ai-service
+    env: docker
+    dockerfilePath: ./Server/services/ai-service/Dockerfile
+    dockerContext: ./Server
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8002
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: maintainer-redis
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # 3. GitHub Service
+  - type: pserv
+    name: maintainer-github-service
+    env: docker
+    dockerfilePath: ./Server/services/github-service/Dockerfile
+    dockerContext: ./Server
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8003
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: maintainer-redis
+          property: connectionString
+      - key: AGENT_SERVICE_URL
+        value: http://maintainer-ai-service:8002
+      - key: GITHUB_MONGO_URI
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+
+  # 4. Report Service
+  - type: pserv
+    name: maintainer-report-service
+    env: docker
+    dockerfilePath: ./Server/services/report-service/Dockerfile
+    dockerContext: ./Server
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8004
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: maintainer-redis
+          property: connectionString
+      - key: REPORT_MONGO_URI
+        sync: false
+
+  # 5. Redis Instance
+  - type: redis
+    name: maintainer-redis
+    region: oregon
+    plan: free
+    ipAllowList: []
